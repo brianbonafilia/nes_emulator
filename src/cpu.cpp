@@ -30,6 +30,62 @@ namespace CPU {
   #define T tick()
   inline void tick() { /* TODO: add 3 PPU steps */ remainingCycles--;}
 
+  /*if r is greater than 255 set Carry flag true
+    if x + y creates overflow, i.e. x and y are same sign(+/-) and adding 
+    creates opposite sign than they have overflowed */
+  inline void upd_cv(u8 x, u8 y, u16 r) {
+    P[C] = (r > 0xFF);
+    P[V] = ~(x ^ y) & (x^r) & 0x80;
+  }
+  /*if x is negative set Negative flag true
+    if x is 0 set Zero Flag true */
+  inline void upd_nz(u8 x)  {
+    P[N] = x & 0x80;
+    P[Z] = (x == 0);
+  }
+  /* if a + i crosses a page(256 mem spots long) return true */
+  inline bool cross(u16 a, u8 i){
+    return ((a + i) & 0xFF00) != (a & 0xFF00);
+  }
+  /*memory access*/
 
+  template <bool wr> u8 inline access(u16 addr, u8 v = 0){
+    u8* r;
 
+    switch(addr){
+      
+      /*RAM access or one of the 3 mirrors of RAM */ 
+    case 0x0000 ... 0x1FFF: r = &ram[addr % 0x800]; if (wr) *r = v; return *r;
+
+    case 0x2000 ... 0x3FFF:  /*TODO return PPU mem access registers*/ return 0;
+      
+    case 0x4000 ... 0x4017:  /*TODO APU and I/O registers*/ return 0;
+
+    case 0x4020 ... 0xFFFF:   /*TODO Cartridge space: PRG ROM, PRG RAM, and
+			       mapper registers */ return 0;
+    }
+    return 0;
+  }
+
+  /*ways to access memory*/
+  //write to memory
+  inline u8 wr(u16 a, u8 v)       { T; return access<true>(a,v); }
+  //read from memory
+  inline u8 rd(u16 a)             { T; return access<false>(a);  }
+  //read from two addresses a,b,  and merge to 16 bit
+  inline u16 rd16_d(u16 a, u16 b) {  return rd(a) | (rd(b) << 8); }
+  //read two addys from a
+  inline u16 rd16(u16 a)          {  return rd16_d(a, a+1); }
+  //push value onto stack, and adjust stack pointer
+  inline u8 push(u8 v)            {  return wr(0x100 + (S--), V); }
+  //pop stack
+  inline u8 pop()                 {  return rd(0x100 + (++S));    }
+
+  /*Addressing Modes*/
+  
+  //Non-indexed
+  //immediate gets address  after OP code 
+  inline u16 immediate()          { return PC++; }
+  inline u16 immediate16()        { PC += 2; return PC -2; }
+  inline u16 abs()                { return 0;}
 }
