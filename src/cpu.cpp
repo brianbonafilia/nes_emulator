@@ -9,8 +9,8 @@ namespace CPU {
 
   /* CPU state */
 
-  u8 A, X ,Y, PC;         //registers, these are as follows
-  u16 S;                  // A is Accumulator: supports carrying overflow
+  u8 A, X ,Y, S;         //registers, these are as follows
+  u16 PC;                  // A is Accumulator: supports carrying overflow
   Flags P;                // detection, and so on
                           // X and Y are used for addressing modes(indices)
                           // PC is program counter, S is Stack Pointer
@@ -83,9 +83,18 @@ namespace CPU {
 
   /*Addressing Modes*/
   
-  //Non-indexed
   //immediate gets address  after OP code 
-  inline u16 immediate()          { return PC++; }
-  inline u16 immediate16()        { PC += 2; return PC -2; }
-  inline u16 abs()                { return 0;}
+  inline u16 imm()          { return PC++;           }
+  inline u16 imm16()        { PC += 2; return PC -2; }
+  //read from address of 2 bytes after OP code
+  inline u16 abs()          { return rd16(imm16());   }
+  //read from address of 2 bytes and add to X
+  inline u16 abx()          { u16 a = abs(); if(cross(a,X)) T; return a + X;}
+  //same but for Y these absolute indexed modes
+  inline u16 aby()          { u16 a = abs(); if(cross(a,Y)) T; return a + Y;}
+  //read byte after OP call, zero page indexing
+  inline u16 zp()           { return rd(imm()); }
+  inline u16 zpx()          { u16 a = zp(); return (a + X) % 256; }
+  inline u16 zpy()          { u16 a = zp(); return (a + Y) % 256; }
+
 }
