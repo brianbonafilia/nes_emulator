@@ -100,10 +100,32 @@ namespace CPU {
   inline u16 zpy()          { u16 a = zp(); return (a + Y) % 256; }
   //indirect addressing 
   inline u16 izx()          { u8 i = zpx(); return rd16_d(i, (i+1) % 0x100); }
-  inline u16 _izy()         { u8 i = zp(); return rd16_d(i, (i+1) % 0x100) + Y;}
-  inline u16 izy()          { u8 i = _izy(); if cross(a-Y, Y) T; return i; }
+  inline u16 _izy()         { u8 i = zp(); return rd16_d(i,(i+1) % 0x100) + Y;}
+  inline u16 izy()          { u8 a = _izy(); if(cross(a-Y, Y)) T; return a; }
 
-  
-  
+  void NOP()         { T; }
 
+  void exec(){
+    switch(rd(PC++)){
+      
+    }
+  }
+  
+  void run_frame(){
+    
+    remainingCycles += TOTAL_CYCLES;
+
+    while( remainingCycles > 0){
+      /*interrupt: do something */
+      if(nmi)
+	;
+      /*other interrupt: also do stuff */
+      else if(irq and !P[I])
+	;
+      
+      exec();
+    }
+
+    //TODO frame elapsed do the stuff
+  }
 }
