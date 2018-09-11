@@ -24,7 +24,7 @@ namespace CPU {
 
   public:
     
-    //returns flag represented by enum
+    //allows for accessing flag based on indexed enum
     bool& operator[] (const int i) {return f[i];  }
     
     /*get turns boolean array into value which would be found in register */
