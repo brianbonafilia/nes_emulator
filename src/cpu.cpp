@@ -90,11 +90,20 @@ namespace CPU {
   inline u16 abs()          { return rd16(imm16());   }
   //read from address of 2 bytes and add to X
   inline u16 abx()          { u16 a = abs(); if(cross(a,X)) T; return a + X;}
+  //Special case?  Tick regardless? will look into
+  inline u16 _abx()         { T; return abs() + X;}
   //same but for Y these absolute indexed modes
   inline u16 aby()          { u16 a = abs(); if(cross(a,Y)) T; return a + Y;}
   //read byte after OP call, zero page indexing
   inline u16 zp()           { return rd(imm()); }
   inline u16 zpx()          { u16 a = zp(); return (a + X) % 256; }
   inline u16 zpy()          { u16 a = zp(); return (a + Y) % 256; }
+  //indirect addressing 
+  inline u16 izx()          { u8 i = zpx(); return rd16_d(i, (i+1) % 0x100); }
+  inline u16 _izy()         { u8 i = zp(); return rd16_d(i, (i+1) % 0x100) + Y;}
+  inline u16 izy()          { u8 i = _izy(); if cross(a-Y, Y) T; return i; }
+
+  
+  
 
 }
