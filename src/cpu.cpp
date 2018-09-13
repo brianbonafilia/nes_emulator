@@ -129,10 +129,13 @@ namespace CPU {
 
   /*STx ops */
   template<u8& r, Mode m> st() void { wr( m(), r); }
-  template<>              st<A, abx>() { T; wr( abs() + X, A); } //Alwa
+  template<>              st<A, abx>() { T; wr( abs() + X, A); } 
   template<>              st<A, aby>() { T; wr( abs() + Y, A); }
   template<>              st<A, izy>() { T; wr(_izy(), A); }
-  
+
+  template<u8 d, u8 s> tr(){   upd_nz(d = s);  T; }
+  template<>           tr<X,S> { S = X;   T;      }  
+  //no need to update flags for TXS ^^
 
   void NOP()         { T; }
 
@@ -180,6 +183,25 @@ namespace CPU {
     case 0x84: return st<Y,zp>();
     case 0x94: return st<Y,zpx>();
     case 0x8C: return st<Y,abs>();
+
+      //TAY
+    case 0xA8: return tr<A,Y>();
+
+      //TAX
+    case 0xAA: return tr<A,X>();
+
+      //TSX
+    case 0xBA: return tr<S,X>();
+
+      //TXA
+    case 0x8A: return tr<X,A>();
+
+      //TXS
+    case 0x9A: return tr<X,S>();
+
+      //TYA
+    case 0x98: return tr<Y,A>();
+
     }
   }
   
