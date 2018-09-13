@@ -102,12 +102,84 @@ namespace CPU {
   inline u16 izx()          { u8 i = zpx(); return rd16_d(i, (i+1) % 0x100); }
   inline u16 _izy()         { u8 i = zp(); return rd16_d(i,(i+1) % 0x100) + Y;}
   inline u16 izy()          { u8 a = _izy(); if(cross(a-Y, Y)) T; return a; }
+  
+  //Load accumulator OPs
+  template<Mode m> void LDA(){
+    u16 a = m();
+    u8 t = rd(a);
+    upd_nz(t);
+    A = t;
+  }
+
+  //Load X register
+  template<Mode m> void LDX(){
+    u16 a = m();
+    u8 t = rd(a);
+    upd_nz(t);
+    X = t;
+  }
+
+  //Load Y register
+  template<Mode m> void LDY(){
+    u16 a = m();
+    u8 t = rd(a);
+    upd_nz(t);
+    Y = t;
+  }
+
+  /*STx ops */
+  template<u8& r, Mode m> st() void { wr( m(), r); }
+  template<>              st<A, abx>() { T; wr( abs() + X, A); } //Alwa
+  template<>              st<A, aby>() { T; wr( abs() + Y, A); }
+  template<>              st<A, izy>() { T; wr(_izy(), A); }
+  
 
   void NOP()         { T; }
 
   void exec(){
     switch(rd(PC++)){
+    case 0x00:   return; //BRK  TODO Interrup Stuff 
+      /*Storage OPs */
+      //LDA
+    case 0xA9: return LDA<imm>();
+    case 0xA5: return LDA<zp>();
+    case 0xB5: return LDA<zpx>();
+    case 0xAD: return LDA<abs>();
+    case 0xBD: return LDA<abx>();
+    case 0xB9: return LDA<aby>();
+    case 0xA1: return LDA<izx>();
+    case 0xB1: return LDA<izy>();
+      //LDX
+    case 0xA2: return LDX<imm>();
+    case 0xA6: return LDX<zp>();
+    case 0xB6: return LDX<zpx>();
+    case 0xAE: return LDX<abs>();
+    case 0xBE: return LDX<abx>();
+      //LDY
+    case 0xA0: return LDY<imm>();
+    case 0xA4: return LDY<zp>();
+    case 0xB4: return LDY<zpx>();
+    case 0xAC: return LDY<abs>();
+    case 0xBC: return LDY<abx>();
       
+      //STA
+    case 0x85: return st<A,zp>();
+    case 0x95: return st<A,zpx>();
+    case 0x8D: return st<A,abs>();
+    case 0x9D: return st<A,abx>();
+    case 0x99: return st<A,aby>();
+    case 0x81: return st<A,izx>();
+    case 0x91: return st<A,izy>();
+
+      //STX
+    case 0x86: return st<X,zp>();
+    case 0x96: return st<X,zpy>();
+    case 0x8E: return st<X,abs>();
+
+      //STY
+    case 0x84: return st<Y,zp>();
+    case 0x94: return st<Y,zpx>();
+    case 0x8C: return st<Y,abs>();
     }
   }
   

@@ -18,6 +18,9 @@ namespace CPU {
   */
   enum Flag {C, Z, I, D, V, N};
 
+  //addressing mode
+  typedef u16 (*Mode)(void);
+
   class Flags {
     
     bool f[6];  //represent each of 6 enum Flags
