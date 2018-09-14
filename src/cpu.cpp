@@ -128,14 +128,48 @@ namespace CPU {
   }
 
   /*STx ops */
-  template<u8& r, Mode m> st() void { wr( m(), r); }
-  template<>              st<A, abx>() { T; wr( abs() + X, A); } 
-  template<>              st<A, aby>() { T; wr( abs() + Y, A); }
-  template<>              st<A, izy>() { T; wr(_izy(), A); }
+  template<u8& r, Mode m> void st() { wr( m(), r); }
+  template<>              void st<A, abx>() { T; wr( abs() + X, A); } 
+  template<>              void st<A, aby>() { T; wr( abs() + Y, A); }
+  template<>              void st<A, izy>() { T; wr(_izy(), A); }
 
-  template<u8 d, u8 s> tr(){   upd_nz(d = s);  T; }
-  template<>           tr<X,S> { S = X;   T;      }  
+  /*Transfer OPS*/
+  template<u8& d, u8& s> void tr(){  upd_nz(s=d);  T; }
+  template<>           void tr<X,S>() { S = X;   T;      }  
   //no need to update flags for TXS ^^
+
+  /*get value at address gotten using address mode */
+#define G u16 a = m(); u8 p = rd(a);
+
+  /*ADC*/
+  template<Mode m> void ADC() {   
+    G;     
+    u16 r = A + p + P[C];
+    upd_cv(A,p,r);
+    upd_nz(A = r);
+  }
+  /*SBC*/
+  //Subtract from accumulator
+  template<Mode m> void SBC()  {
+    G;
+    p = ~p;  //take complement of value taken from memory
+    u16 r = A + p + P[C];
+    upd_cv(A,p, r);
+    upd_nz(A = r);
+  }
+
+  /*DEC from memory-- */
+  template<Mode m> void DEC(){
+    G;
+    T;
+    wr(a,--p);
+    upd_nz(p);
+  }
+  /* decrement from registers */
+  void DEX(){  T;  upd_nz(--X); }
+  void DEY(){  T;  upd_nz(--Y); }
+
+
 
   void NOP()         { T; }
 
@@ -202,6 +236,39 @@ namespace CPU {
       //TYA
     case 0x98: return tr<Y,A>();
 
+      //ADC
+    case 0x69: return ADC<imm>();
+    case 0x65: return ADC<zp>();
+    case 0x75: return ADC<zpx>();
+    case 0x60: return ADC<abs>();
+    case 0x70: return ADC<abx>();
+    case 0x79: return ADC<aby>();
+    case 0x61: return ADC<izx>();
+    case 0x71: return ADC<izy>();
+
+      //SBC
+    case 0xE9: return SBC<imm>();
+    case 0xE5: return SBC<zp>();
+    case 0xF5: return SBC<zpx>();
+    case 0xED: return SBC<abs>();
+    case 0xFD: return SBC<abx>();
+    case 0xF9: return SBC<aby>();
+    case 0xE1: return SBC<izx>();
+    case 0xF1: return SBC<izy>();
+
+      //DEC
+    case 0xC6: return DEC<zp>();
+    case 0xD6: return DEC<zpx>();
+    case 0xCE: return DEC<abs>();
+    case 0xDE: return DEC<_abx>(); // use _abx because we always Tick to check
+                                   // if writing to right mem location page
+                                   // cross
+
+      //DEX
+    case 0xCA: return DEX();
+
+      //DEY
+    case 0x88: return DEY();
     }
   }
   
