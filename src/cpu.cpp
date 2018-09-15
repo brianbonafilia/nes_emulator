@@ -169,7 +169,36 @@ namespace CPU {
   void DEX(){  T;  upd_nz(--X); }
   void DEY(){  T;  upd_nz(--Y); }
 
+  /*INC from memory*/
+  template<Mode m> void INC(){
+    G;
+    T;
+    wr(a,++p);
+    upd_nz(p);
+  }
 
+  /*increment registers*/
+  void INX(){ T; upd_nz(++X); }
+  void INY(){ T; upd_nz(++Y); }
+ 
+  /*BITWISE OPS*/
+
+  template<Mode m> void AND(){
+    G;
+    u8 v = A & p;
+    upd_nz(A = v);
+  }
+
+  //Shift left 1 bit, accumulater
+  void ASL(){ u16 r = A << 1; P[C] = r > 0xFF; upd_nz(A = r); T; }
+
+  //shift memory location left
+  template<Mode m> void ASL(){
+    G;
+    P[C] = p & 0x80;   //shift leftmost bit into carry flag;
+    T;
+    upd_nz(wr(a, p << 1));
+  } 
 
   void NOP()         { T; }
 
@@ -269,6 +298,31 @@ namespace CPU {
 
       //DEY
     case 0x88: return DEY();
+
+      //INC
+    case 0xE6: return INC<zp>();
+    case 0xF6: return INC<zpx>();
+    case 0xEE: return INC<abs>();  
+    case 0xFE: return INC<_abx>();  //Tick regardless of page cross
+
+      //INX
+    case 0xE8: return INX();
+
+      //INY
+    case 0xC8: return INY();
+
+      //AND
+    case 0x29: return AND<imm>();
+    case 0x25: return AND<zp>();
+    case 0x35: return AND<zpx>();
+    case 0x2D: return AND<abs>();
+    case 0x3D: return AND<abx>();
+    case 0x39: return AND<aby>();
+    case 0x21: return AND<izx>();
+    case 0x31: return AND<izy>();
+
+      //ASL
+      //    case
     }
   }
   
