@@ -101,7 +101,7 @@ namespace CPU {
   //indirect addressing 
   inline u16 izx()          { u8 i = zpx(); return rd16_d(i, (i+1) % 0x100); }
   inline u16 _izy()         { u8 i = zp(); return rd16_d(i,(i+1) % 0x100) + Y;}
-  inline u16 izy()          { u8 a = _izy(); if(cross(a-Y, Y)) T; return a; }
+  inline u16 izy()          { u16 a = _izy(); if(cross(a-Y, Y)) T; return a; }
   
   //Load accumulator OPs
   template<Mode m> void LDA(){
@@ -200,6 +200,20 @@ namespace CPU {
     upd_nz(wr(a, p << 1));
   } 
 
+  /*BIT testing, bits 6 and 7 go status register(N and V) */ 
+  template<Mode m> void BIT(){
+    G;
+    P[Z] = !(A & p);
+    P[N] = p & 0x80;  //bit 7 to N
+    P[V] = p & 0x40;  //bit 6 to V
+  }
+
+  template<Mode m> void EOR(){  G; upd_nz(A = (p^A)); }
+
+  void LSR(){ P[C] = A & 0x01; upd_nz(A >>= 1); T; }
+  
+  template<Mode m> void LSR(){ G; P[C] = p & 0x01; upd_nz(wr(a, p >> 1)); T;}
+    
   void NOP()         { T; }
 
   void exec(){
@@ -319,10 +333,35 @@ namespace CPU {
     case 0x3D: return AND<abx>();
     case 0x39: return AND<aby>();
     case 0x21: return AND<izx>();
-    case 0x31: return AND<izy>();
+    case 0x31: return AND<_izy>();  //
 
       //ASL
-      //    case
+    case 0x0A: return ASL();
+    case 0x06: return ASL<zp>();
+    case 0x16: return ASL<zpx>();
+    case 0x0E: return ASL<abs>();
+    case 0x1E: return ASL<_abx>();  //Always tick when writing to mem (x page)
+   
+      //BIT
+    case 0x24: return BIT<zp>();
+    case 0x2C: return BIT<abs>();
+
+      //EOR
+    case 0x49: return EOR<imm>();
+    case 0x45: return EOR<zp>();
+    case 0x55: return EOR<zpx>();
+    case 0x4D: return EOR<abs>();
+    case 0x5D: return EOR<abx>();
+    case 0x59: return EOR<aby>();
+    case 0x41: return EOR<izx>();
+    case 0x51: return EOR<izy>();
+
+      //LSR
+    case 0x4A: return LSR();
+    case 0x46: return LSR<zp>();
+    case 0x56: return LSR<zpx>();
+    case 0x4E: return LSR<abs>();
+    case 0x5E: return LSR<_abx>();
     }
   }
   
