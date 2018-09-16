@@ -207,15 +207,137 @@ namespace CPU {
     P[N] = p & 0x80;  //bit 7 to N
     P[V] = p & 0x40;  //bit 6 to V
   }
-
+  
+  //exclusive OR
   template<Mode m> void EOR(){  G; upd_nz(A = (p^A)); }
 
+  //Shift one bit right move, move 0th bit to Carry
   void LSR(){ P[C] = A & 0x01; upd_nz(A >>= 1); T; }
   
   template<Mode m> void LSR(){ G; P[C] = p & 0x01; upd_nz(wr(a, p >> 1)); T;}
-    
-  void NOP()         { T; }
+  
+  //Or value from memory with Accumulator, insert result into A
+  template<Mode m> void ORA(){ G; upd_nz(A |= p); }
+  
+  //Rotate value one bit to left, update carry with MSB, update N,Z
+  template<Mode m> void ROL(){ 
+    G; 
+    T;
+    P[C] = p & 0x80; 
+    p = (p << 1) + P[C];
+    upd_nz(wr(a, p));
+  }
 
+  void ROL(){
+    P[C] = A & 0x80;
+    A = (A << 1) + P[C];
+    upd_nz(A);
+    T;
+  }
+
+  //Rotate one bit right, update carry with LSB, update N,Z
+  template<Mode m> ROR(){
+    G;
+    P[C] = p & 0x01;
+    p = (p >> 1) + (P[C]<<7);
+    upd_nz(wr(a,p));
+    T;
+  }
+
+  ROR(){
+    P[C] = A & 0x01;
+    A = (A >> 1) + (P[C] << 7);
+    upd_nz(A);
+    T;
+  }
+
+  //Branch on carry clear, P[C] = 0, PC will move to next location 
+  BCC(){
+    s8 p = rd(imm());
+    if(!P[C]){
+      T;
+      if(cross(PC, p))
+	T;
+      PC += p;
+    }     
+  }
+
+  //Branch on carry set, if P[C], program counter will move to next location
+  BCS(){
+    s8 p = rd(imm());
+    if(P[C]){
+      T;
+      if(cross(PC,p))
+	T;
+      PC += p;
+    }
+  }
+
+  //branch on result zero
+  BEQ(){
+    s8 p = rd(imm());
+    if(P[Z]){
+      T;
+      if(cross(PC,p))
+	T;
+      PC += p;
+    }
+  }
+
+  //branch on result minus
+  BMI(){
+    s8 p = rd(imm());
+    if(P[N]){
+      T;
+      if(cross(PC,p))
+	T;
+      PC += p;
+    }
+  }
+
+  //branch on not zero
+  BNE(){
+    s8 p = rd(imm());
+    if(!P[Z]){
+      T;
+      if(cross(PC,p))
+	T;
+      PC += p;
+    }
+  }
+
+  //branch on result plus
+  BPL(){
+    s8 p = rd(imm());
+    if(!P[N]){
+      T;
+      if(cross(PC,p))
+	T;
+      PC += p;
+    }
+  }
+  //Branch on overflow flag clear
+  BVC(){
+    s8 p = rd(imm());
+    if(!P[V]){
+      T;
+      if(cross(PC,p))
+	T;
+      PC += p;
+    }
+  }
+  //Branch on carry flag set
+  BVS(){
+    s8 p = rd(imm());
+    if(P[V]){
+      T;
+      if(cross(PC,p))
+	T;
+      PC += p;
+    }
+  }
+  void NOP()         { T; }
+ 
   void exec(){
     switch(rd(PC++)){
     case 0x00:   return; //BRK  TODO Interrup Stuff 
@@ -362,6 +484,44 @@ namespace CPU {
     case 0x56: return LSR<zpx>();
     case 0x4E: return LSR<abs>();
     case 0x5E: return LSR<_abx>();
+   
+    //ORA
+    case 0x09: return ORA<imm>();
+    case 0x05: return ORA<zp>();
+    case 0x15: return ORA<zpx>();
+    case 0x0D: return ORA<abs>();
+    case 0x1D: return ORA<abx>();
+    case 0x19: return ORA<aby>();
+    case 0x01: return ORA<izx>();
+    case 0x11: return ORA<_izy>();
+
+      //ROL
+    case 0x2A: return ROL();
+    case 0x26: return ROL<zp>();
+    case 0x36: return ROL<zpx>();
+    case 0x2E: return ROL<abs>();
+    case 0x32: return ROL<_abx>();
+
+      //ROR
+    case 0x6A: return ROR();
+    case 0x66: return ROR<zp>();
+    case 0x76: return ROR<zpx>();
+    case 0x6E: return ROR<abs>();
+    case 0x7E: return ROR<_abx>();
+
+      //BRANCH
+    case 0x90: return BCC();
+    case 0xB0: return BCS();
+    case 0xF0: return BEQ();
+    case 0x30: return BMI();
+    case 0xD0: return BNE();
+    case 0x10: return BPL();
+    case 0x50: return BVC();
+    case 0x70: return BVS();
+
+      //JMP
+    case 0x4c: return JMP<abs>();
+    case 0x6c: return JMP<i
     }
   }
   
