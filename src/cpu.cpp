@@ -236,7 +236,7 @@ namespace CPU {
   }
 
   //Rotate one bit right, update carry with LSB, update N,Z
-  template<Mode m> ROR(){
+  template<Mode m> void ROR(){
     G;
     P[C] = p & 0x01;
     p = (p >> 1) + (P[C]<<7);
@@ -244,7 +244,7 @@ namespace CPU {
     T;
   }
 
-  ROR(){
+  void ROR(){
     P[C] = A & 0x01;
     A = (A >> 1) + (P[C] << 7);
     upd_nz(A);
@@ -252,7 +252,7 @@ namespace CPU {
   }
 
   //Branch on carry clear, P[C] = 0, PC will move to next location 
-  BCC(){
+  void BCC(){
     s8 p = rd(imm());
     if(!P[C]){
       T;
@@ -263,7 +263,7 @@ namespace CPU {
   }
 
   //Branch on carry set, if P[C], program counter will move to next location
-  BCS(){
+  void BCS(){
     s8 p = rd(imm());
     if(P[C]){
       T;
@@ -274,7 +274,7 @@ namespace CPU {
   }
 
   //branch on result zero
-  BEQ(){
+  void BEQ(){
     s8 p = rd(imm());
     if(P[Z]){
       T;
@@ -285,7 +285,7 @@ namespace CPU {
   }
 
   //branch on result minus
-  BMI(){
+  void BMI(){
     s8 p = rd(imm());
     if(P[N]){
       T;
@@ -296,7 +296,7 @@ namespace CPU {
   }
 
   //branch on not zero
-  BNE(){
+  void BNE(){
     s8 p = rd(imm());
     if(!P[Z]){
       T;
@@ -307,7 +307,7 @@ namespace CPU {
   }
 
   //branch on result plus
-  BPL(){
+  void BPL(){
     s8 p = rd(imm());
     if(!P[N]){
       T;
@@ -317,7 +317,7 @@ namespace CPU {
     }
   }
   //Branch on overflow flag clear
-  BVC(){
+  void BVC(){
     s8 p = rd(imm());
     if(!P[V]){
       T;
@@ -327,7 +327,7 @@ namespace CPU {
     }
   }
   //Branch on carry flag set
-  BVS(){
+  void BVS(){
     s8 p = rd(imm());
     if(P[V]){
       T;
@@ -336,6 +336,43 @@ namespace CPU {
       PC += p;
     }
   }
+  /*Stack Operations*/
+  //Push A onto stack
+  void PHA(){  T; push(A); }
+  //Pull A from stack
+  void PLA(){ T; T; A = pop(); upd_nz(A); }
+  //Push Processor Statuses onto stack
+  void PHP(){ T; push(P.get() | (1 << 4)); }  //set B flag
+  //Pull Processor Status from stack
+  void PLP(){ T; T; P.set(pop()); }
+  //
+
+  //Jump to address made from next 2 bytes
+  void JMP(){
+    PC = abs();
+  }
+  /*Indirect JMP */
+  //Jump to address, by reading from memory at address of next 2 bytes
+  void i_JMP(){
+    u16 a = abs();
+    if(cross(a,1))
+      PC = rd16_d(a, a - 0xFF);
+    else
+      PC = rd16(a);
+  }
+
+  void JSR(){
+    u16 t = PC+1;
+    T;
+    push(t>>8);
+    push(t);
+    PC = rd16(imm16());
+  }
+
+  void RTI(){
+
+  }
+
   void NOP()         { T; }
  
   void exec(){
@@ -405,8 +442,8 @@ namespace CPU {
     case 0x69: return ADC<imm>();
     case 0x65: return ADC<zp>();
     case 0x75: return ADC<zpx>();
-    case 0x60: return ADC<abs>();
-    case 0x70: return ADC<abx>();
+    case 0x6D: return ADC<abs>();
+    case 0x7D: return ADC<abx>();
     case 0x79: return ADC<aby>();
     case 0x61: return ADC<izx>();
     case 0x71: return ADC<izy>();
@@ -509,6 +546,12 @@ namespace CPU {
     case 0x6E: return ROR<abs>();
     case 0x7E: return ROR<_abx>();
 
+      /*Stack Operations */
+    case 0x48: return PHA();
+    case 0x08: return PHP();
+    case 0x68: return PLA();
+    case 0x28: return PLP();
+
       //BRANCH
     case 0x90: return BCC();
     case 0xB0: return BCS();
@@ -520,8 +563,9 @@ namespace CPU {
     case 0x70: return BVS();
 
       //JMP
-    case 0x4c: return JMP<abs>();
-    case 0x6c: return JMP<i
+    case 0x4C: return JMP();
+    case 0x6C: return i_JMP();
+    case 0x20: return JSR();
     }
   }
   
