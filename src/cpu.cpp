@@ -368,11 +368,35 @@ namespace CPU {
     push(t);
     PC = rd16(imm16());
   }
-
+  
   void RTI(){
 
   }
 
+  /*Status Register Change*/
+  //Clear flag
+  template<Flag f> void cl(){
+    P[f] = 0;
+    T;
+  }
+  
+  //Set flag
+  template<Flag f> void set(){
+    P[f] = 0;
+    T;
+  }
+
+  /*Compare Ops  CMx*/
+  //Register - Memory
+  // Memory > Register : set N
+  // Memory = Register : set Z and C
+  // Memory < Register : set C
+  template<u8& r, Mode m> void cmp(){
+    G;
+    upd_nz(r - p);
+    P[C] = (r >= p);
+  }
+    
   void NOP()         { T; }
  
   void exec(){
@@ -566,6 +590,39 @@ namespace CPU {
     case 0x4C: return JMP();
     case 0x6C: return i_JMP();
     case 0x20: return JSR();
+
+      //Flag Setting and Clearing
+    case 0x18: return cl<C>();    //clear 
+    case 0xD8: return cl<D>();    
+    case 0x58: return cl<I>();
+    case 0xB8: return cl<V>();
+    case 0x38: return set<C>();    //set
+    case 0xF8: return set<D>();
+    case 0x78: return set<I>();
+  
+      //Compare OPS
+      //Compare against A (CMP)
+    case 0xC9: return cmp<A,imm>();
+    case 0xC5: return cmp<A,zp>();
+    case 0xD5: return cmp<A,zpx>();
+    case 0xCD: return cmp<A,abs>();
+    case 0xDD: return cmp<A,abx>();
+    case 0xD9: return cmp<A,aby>();
+    case 0xC1: return cmp<A,izx>();
+    case 0xD1: return cmp<A,izy>();
+
+      //Compare X (CPX)
+    case 0xE0: return cmp<X,imm>();
+    case 0xE4: return cmp<X,zp>();
+    case 0xEC: return cmp<X,abs>();
+	
+	//Compare Y (CPY)
+    case 0xC0: return cmp<Y,imm>();
+    case 0xC4: return cmp<Y,zp>();
+    case 0xCC: return cmp<Y,abs>();
+
+      //NOP
+    case 0xEA: return NOP();
     }
   }
   
