@@ -370,8 +370,31 @@ namespace CPU {
   }
   
   void RTI(){
-
+	T;
+	T;
+	P.set(pop());
+	PC = pop();
+	PC = pop()<<8 | PC;
   }
+
+  void RTS(){
+	T;
+	T;
+	PC = pop() | pop() << 8;
+	PC++;
+	T;
+  }
+
+  void BRK(){
+	T;
+	u16 t = PC+2;	
+	push(t>>8);
+	push(t);
+	PC = rd(0xFFFE);
+	PC = (rd(0xFFFF) << 8) | PC;
+	push(P.get() | (1 << 4));
+  }
+
 
   /*Status Register Change*/
   //Clear flag
@@ -590,6 +613,9 @@ namespace CPU {
     case 0x4C: return JMP();
     case 0x6C: return i_JMP();
     case 0x20: return JSR();
+    case 0x40: return RTI();
+    case 0x60: return RTS();
+    case 0x00: return BRK();
 
       //Flag Setting and Clearing
     case 0x18: return cl<C>();    //clear 
