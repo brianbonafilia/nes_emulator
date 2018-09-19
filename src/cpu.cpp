@@ -423,8 +423,7 @@ namespace CPU {
   void NOP()         { T; }
  
   void exec(){
-    switch(rd(PC++)){
-    case 0x00:   return; //BRK  TODO Interrup Stuff 
+    switch(rd(PC++)){ 
       /*Storage OPs */
       //LDA
     case 0xA9: return LDA<imm>();
@@ -652,17 +651,58 @@ namespace CPU {
     }
   }
   
+  void set_nmi(bool v) { nmi = v; }
+  void set_irq(bool v) { irq = v; }
+
+  //reset interrupt
+  void reset(){
+    S -= 3;
+    set_irq();
+    P[I] = 1;
+    T;T;T;T;T;
+    PC = rd16(0xFFFC);
+  }
+  //regular interrupt request
+  void irq_interrupt(){
+    T; T;
+    push(PC >> 8); push(PC & 0xFF);
+    push(P.get());
+    PC = rd16(0xFFFE);
+  }
+  //non maskable interrupt
+  void nmi_interrupt(){
+    T;T;
+    push(PC >> 8); push(PC);
+    push(P.get());
+    PC = rd16(0xFFFA);
+    nmi = false;
+  }
+  //set up CPU state on start
+  void power(){
+    A = 0; X = 0; Y = 0;
+    P.set(0x34);
+    remainingCycles = 0;
+    S = 0x00;                      //When reset is done sets to 0xFD like expected
+    memset(ram,0xFF, sizeof(ram));
+
+    nmi = false; irq = false;
+    //reset
+
+    reset();
+  }
+
+  
   void run_frame(){
     
     remainingCycles += TOTAL_CYCLES;
 
     while( remainingCycles > 0){
-      /*interrupt: do something */
+      /*interrupt */
       if(nmi)
-	;
+	nmi_interrupt();
       /*other interrupt: also do stuff */
       else if(irq and !P[I])
-	;
+	irq_interrupt();
       
       exec();
     }
