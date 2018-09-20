@@ -26,7 +26,7 @@ namespace CPU {
   inline int elapsed(){ return TOTAL_CYCLES - remainingCycles; }
 
   /*defining method tick to be T will make easier to include, in  many places
-    tick will be called at the end of each operation */
+    tick will be called during each operation */
   #define T tick()
   inline void tick() { /* TODO: add 3 PPU steps */ remainingCycles--;}
 
@@ -90,7 +90,7 @@ namespace CPU {
   inline u16 abs()          { return rd16(imm16());   }
   //read from address of 2 bytes and add to X
   inline u16 abx()          { u16 a = abs(); if(cross(a,X)) T; return a + X;}
-  //Special case?  Tick regardless? will look into
+  //Special case,  Tick regardless of page cross as is write to memory
   inline u16 _abx()         { T; return abs() + X;}
   //same but for Y these absolute indexed modes
   inline u16 aby()          { u16 a = abs(); if(cross(a,Y)) T; return a + Y;}
@@ -138,7 +138,7 @@ namespace CPU {
   template<>           void tr<X,S>() { S = X;   T;      }  
   //no need to update flags for TXS ^^
 
-  /*get value at address gotten using address mode */
+  /*get value at address using address mode */
 #define G u16 a = m(); u8 p = rd(a);
 
   /*ADC*/
@@ -360,7 +360,7 @@ namespace CPU {
     else
       PC = rd16(a);
   }
-
+  //Jump to subroutine
   void JSR(){
     u16 t = PC+1;
     T;
@@ -368,7 +368,7 @@ namespace CPU {
     push(t);
     PC = rd16(imm16());
   }
-  
+  //Return from interrupt
   void RTI(){
 	T;
 	T;
@@ -376,7 +376,7 @@ namespace CPU {
 	PC = pop();
 	PC = pop()<<8 | PC;
   }
-
+  //Return from subroutine
   void RTS(){
 	T;
 	T;
@@ -384,7 +384,7 @@ namespace CPU {
 	PC++;
 	T;
   }
-
+  //BReaK
   void BRK(){
 	T;
 	u16 t = PC+2;	
