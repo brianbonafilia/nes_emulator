@@ -648,6 +648,8 @@ namespace CPU {
 
       //NOP
     case 0xEA: return NOP();
+
+    default: NOP(); std::cout << "undefined op " << std::endl;
     }
   }
   
