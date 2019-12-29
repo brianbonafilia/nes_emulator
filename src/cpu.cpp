@@ -26,7 +26,7 @@ namespace CPU {
   inline int elapsed(){ return TOTAL_CYCLES - remainingCycles; }
 
   /*defining method tick to be T will make easier to include, in  many places
-    tick will be called at the end of each operation */
+    tick will be called during each operation */
   #define T tick()
   inline void tick() { /* TODO: add 3 PPU steps */ remainingCycles--;}
 
@@ -90,7 +90,7 @@ namespace CPU {
   inline u16 abs()          { return rd16(imm16());   }
   //read from address of 2 bytes and add to X
   inline u16 abx()          { u16 a = abs(); if(cross(a,X)) T; return a + X;}
-  //Special case?  Tick regardless? will look into
+  //Special case,  Tick regardless of page cross as is write to memory
   inline u16 _abx()         { T; return abs() + X;}
   //same but for Y these absolute indexed modes
   inline u16 aby()          { u16 a = abs(); if(cross(a,Y)) T; return a + Y;}
@@ -138,7 +138,7 @@ namespace CPU {
   template<>           void tr<X,S>() { S = X;   T;      }  
   //no need to update flags for TXS ^^
 
-  /*get value at address gotten using address mode */
+  /*get value at address using address mode */
 #define G u16 a = m(); u8 p = rd(a);
 
   /*ADC*/
@@ -360,7 +360,7 @@ namespace CPU {
     else
       PC = rd16(a);
   }
-
+  //Jump to subroutine
   void JSR(){
     u16 t = PC+1;
     T;
@@ -368,7 +368,7 @@ namespace CPU {
     push(t);
     PC = rd16(imm16());
   }
-  
+  //Return from interrupt
   void RTI(){
 	T;
 	T;
@@ -376,7 +376,7 @@ namespace CPU {
 	PC = pop();
 	PC = pop()<<8 | PC;
   }
-
+  //Return from subroutine
   void RTS(){
 	T;
 	T;
@@ -384,7 +384,7 @@ namespace CPU {
 	PC++;
 	T;
   }
-
+  //BReaK
   void BRK(){
 	T;
 	u16 t = PC+2;	
@@ -423,8 +423,7 @@ namespace CPU {
   void NOP()         { T; }
  
   void exec(){
-    switch(rd(PC++)){
-    case 0x00:   return; //BRK  TODO Interrup Stuff 
+    switch(rd(PC++)){ 
       /*Storage OPs */
       //LDA
     case 0xA9: return LDA<imm>();
@@ -649,20 +648,63 @@ namespace CPU {
 
       //NOP
     case 0xEA: return NOP();
+
+    default: NOP(); std::cout << "undefined op " << std::endl;
     }
   }
+  
+  void set_nmi(bool v) { nmi = v; }
+  void set_irq(bool v) { irq = v; }
+
+  //reset interrupt
+  void reset(){
+    S -= 3;
+    set_irq();
+    P[I] = 1;
+    T;T;T;T;T;
+    PC = rd16(0xFFFC);
+  }
+  //regular interrupt request
+  void irq_interrupt(){
+    T; T;
+    push(PC >> 8); push(PC & 0xFF);
+    push(P.get());
+    PC = rd16(0xFFFE);
+  }
+  //non maskable interrupt
+  void nmi_interrupt(){
+    T;T;
+    push(PC >> 8); push(PC);
+    push(P.get());
+    PC = rd16(0xFFFA);
+    nmi = false;
+  }
+  //set up CPU state on start
+  void power(){
+    A = 0; X = 0; Y = 0;
+    P.set(0x34);
+    remainingCycles = 0;
+    S = 0x00;                      //When reset is done sets to 0xFD like expected
+    memset(ram,0xFF, sizeof(ram));
+
+    nmi = false; irq = false;
+    //reset
+
+    reset();
+  }
+
   
   void run_frame(){
     
     remainingCycles += TOTAL_CYCLES;
 
     while( remainingCycles > 0){
-      /*interrupt: do something */
+      /*interrupt */
       if(nmi)
-	;
+	nmi_interrupt();
       /*other interrupt: also do stuff */
       else if(irq and !P[I])
-	;
+	irq_interrupt();
       
       exec();
     }
