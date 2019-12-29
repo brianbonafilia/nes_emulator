@@ -1,5 +1,5 @@
 #include <cstdio>
-#include <stdlib>
+#include <cstdlib>
 #include "include/cartridge.hpp" 
 #include "include/cpu.hpp"
 
@@ -8,16 +8,16 @@ namespace Cartridge {
   //Mapper will be include here to handle memory access
 
   //access PRG ROM/RAM using mapper
-  template<bool wr> u8 access(u16 addr, u8 v = 0){
+  template<bool wr> u8 access(u16 addr, u8 v){
     //TODO mapper access
     return 0;
   }
-  template<bool wr> u8 chr_access(u16 addr, u8 v = 0){
+  template<bool wr> u8 chr_access(u16 addr, u8 v){
     //TODO mapper access
     return 0;
   }
 
-  void load(cons char* fileName){
+  void load(const char* fileName){
     //Open to read binary file with ROM in it
     FILE* f = fopen(fileName, "rb");
     if(f == NULL){
