@@ -4,10 +4,10 @@
 
 /*This class will be parent to other Mapper classes */
 
-class Mapper(u8* rom) :rom(rom) {
+class Mapper {
 
   u8* rom;   //array of ROM
-  bool chrRam = false;  //figure out why
+  bool chrRam = false;  //we assume chrRom by default
                         
  protected:
   
@@ -29,7 +29,7 @@ class Mapper(u8* rom) :rom(rom) {
   virtual u8 write(u16 addr, u8 val) { return val; }
   
   u8 chr_read(u16 addr);
-  virtual chr_write(u16 addr, u8 v) { return v; }
+  virtual u8 chr_write(u16 addr, u8 v) { return v; }
 
   virtual void signal_scanline() {}
 
