@@ -3,10 +3,13 @@
 #include <iostream>
 #include "include/cartridge.hpp"
 #include "include/cpu.hpp"
+#include "include/mapper.hpp"
+#include "include/mappers/mapper0.hpp"
 
 namespace Cartridge
 {
 
+Mapper *mapper;
 //Mapper will be include here to handle memory access
 
 //access PRG ROM/RAM using mapper
@@ -14,6 +17,10 @@ template <bool wr>
 u8 access(u16 addr, u8 v)
 {
   //TODO mapper access
+  if (!wr)
+  {
+    return mapper->read(addr);
+  }
   return 0;
 }
 template <bool wr>
@@ -52,9 +59,14 @@ void load(const char *fileName)
   //Find Mapper
   u8 mapperID = (rom[7] & 0xF0) + (rom[6] >> 4);
 
-  std::cout << (int) mapperID << std::endl;
+  std::cout << (int)mapperID << std::endl;
+
+  switch (mapperID)
+  {
+    case 0:
+      mapper = new Mapper0(rom);
+  }
   //
-  
 
   //Start running the ROM file
   CPU::power();
@@ -67,4 +79,6 @@ bool loaded()
   return true;
 }
 
+template u8 access<true>(u16, u8);
+template u8 access<false>(u16, u8);
 } // namespace Cartridge
