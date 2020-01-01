@@ -3,7 +3,7 @@
 
 
 int main(int argc, char* argv[]) {
-    Cartridge::load("cpu_timing_test.nes");
+    Cartridge::load("nestest.nes");
     while (true) {
         CPU::run_frame();
     }

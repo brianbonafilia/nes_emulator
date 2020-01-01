@@ -35,8 +35,8 @@ namespace CPU {
 		       f[V] << 6 | f[N] << 7); }
     /* takes value that would be in register and sets bool array */
     void set(u8 p) { f[C] = NTH_BIT(p,0); f[Z] = NTH_BIT(p,1); 
-      f[I] = NTH_BIT(p,2);  f[D] = NTH_BIT(p,3); f[Z] = NTH_BIT(p,6);
-      f[C] = NTH_BIT(p,7); }
+      f[I] = NTH_BIT(p,2);  f[D] = NTH_BIT(p,3); f[V] = NTH_BIT(p,6);
+      f[N] = NTH_BIT(p,7);}
 
     };
 

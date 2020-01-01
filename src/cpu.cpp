@@ -79,8 +79,7 @@ u8 inline access(u16 addr, u8 v = 0)
 
   case 0x4020 ... 0xFFFF: /*TODO Cartridge space: PRG ROM, PRG RAM, and
 			       mapper registers */
-    Cartridge::access<wr>(addr, v);
-    return 0;
+    return Cartridge::access<wr>(addr, v);
   }
   return 0;
 }
@@ -103,7 +102,7 @@ inline u16 rd16_d(u16 a, u16 b) { return rd(a) | (rd(b) << 8); }
 //read two addys from a
 inline u16 rd16(u16 a) { return rd16_d(a, a + 1); }
 //push value onto stack, and adjust stack pointer
-inline u8 push(u8 v) { return wr(0x100 + (S--), V); }
+inline u8 push(u8 v) { return wr(0x100 + (S--), v); }
 //pop stack
 inline u8 pop() { return rd(0x100 + (++S)); }
 
@@ -544,7 +543,9 @@ void PLP()
 {
   T;
   T;
-  P.set(pop());
+  u8 temp = pop();
+  std::cout << " putting into P = " << (int) temp << std::endl; 
+  P.set(temp);
 }
 //
 
@@ -588,6 +589,8 @@ void RTS()
   T;
   PC = pop() | pop() << 8;
   PC++;
+
+  std::cout << "jumpoint to sub from " << std::hex << (int) PC << std::endl;
   T;
 }
 //BReaK
@@ -615,7 +618,7 @@ void cl()
 template <Flag f>
 void set()
 {
-  P[f] = 0;
+  P[f] = 1;
   T;
 }
 
@@ -636,6 +639,11 @@ void NOP() { T; }
 
 void exec()
 {
+  std::cout << " Program Counter " << std::hex << PC;
+  std::cout << " performing OP code " << std::hex << (int) rd(PC);
+  std::cout << " A = " << (int) A << " X = " << (int) X << " Y = " << (int) Y;
+  std::cout << " P =  " << std::hex << (int) P.get();
+  std::cout << " S = " << std::hex << (int) S << std::endl;
   switch (rd(PC++))
   {
     /*Storage OPs */
@@ -666,7 +674,7 @@ void exec()
   case 0xAE:
     return LDX<abs>();
   case 0xBE:
-    return LDX<abx>();
+    return LDX<aby>();
     //LDY
   case 0xA0:
     return LDY<imm>();
@@ -902,7 +910,7 @@ void exec()
     return ROL<zpx>();
   case 0x2E:
     return ROL<abs>();
-  case 0x32:
+  case 0x3E:
     return ROL<_abx>();
 
     //ROR
@@ -1013,12 +1021,17 @@ void exec()
     //NOP
   case 0xEA:
     return NOP();
+  
+    //Unofficial
+  case 0x04:
+    PC++;
+    NOP();
 
   default:
     NOP();
     std::cout << "undefined op" << std::endl;
-    std::cout << rd(PC) << std::endl;
-    std::cout << PC << std::endl;
+    std::cout << "Op code - " << std::hex <<(int) rd(PC - 1) << std::endl;
+    std::cout << "program counter value = " << (int) PC << std::endl;
   }
 }
 
@@ -1037,6 +1050,7 @@ void reset()
   T;
   T;
   PC = rd16(0xFFFC);
+  PC = 0xC000;
 }
 //regular interrupt request
 void irq_interrupt()
@@ -1047,7 +1061,7 @@ void irq_interrupt()
   push(PC & 0xFF);
   push(P.get());
   PC = rd16(0xFFFE);
-}
+} 
 //non maskable interrupt
 void nmi_interrupt()
 {
@@ -1085,12 +1099,13 @@ void run_frame()
   while (remainingCycles > 0)
   {
     /*interrupt */
-    if (nmi)
+    if (nmi){
       nmi_interrupt();
+    }
     /*other interrupt: also do stuff */
-    else if (irq and !P[I])
+    else if (irq and !P[I]){
       irq_interrupt();
-
+    }
     exec();
   }
 

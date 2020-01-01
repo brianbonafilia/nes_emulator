@@ -2,7 +2,7 @@
 #include <cstdint>
 
 //returns the nth bit from x,  
-#define NTH_BIT(x,n) (((x) >> (n)) & 1)
+#define NTH_BIT(x,n) ((x >> n) & 1)
 
 /*Integer type shortcuts */
 typedef uint8_t   u8;  typedef int8_t s8;
