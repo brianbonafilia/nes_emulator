@@ -1,6 +1,7 @@
 #include <iostream>
 #include <cstdlib>
 #include <cstring>
+#include "unistd.h"
 
 #include "include/cpu.hpp"
 #include "include/cartridge.hpp"

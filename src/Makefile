@@ -1,5 +1,5 @@
 CPPFLAGS=-g -Wall -Werror -std=c++17
-LDFLAGS=-g -Wall -Werror -std=c++17
+LDFLAGS=-g -Wall -Werror -std=c++17 -L/opt/homebrew/lib -lSDL2
 
 all: main clean
 
