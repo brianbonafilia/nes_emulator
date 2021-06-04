@@ -5,10 +5,13 @@
 
 #include "include/cpu.hpp"
 #include "include/cartridge.hpp"
+#include "include/ppu.hpp"
 
 namespace CPU {
 
 /* CPU state */
+
+    bool debug = false;
 
     u8 A, X, Y, S; //registers, these are as follows
     u16 PC;        // A is Accumulator: supports carrying overflow
@@ -31,8 +34,11 @@ namespace CPU {
     tick will be called during each operation */
 #define T tick()
 
-    inline void tick() { /* TODO: add 3 PPU steps */
+    inline void tick() {
         remainingCycles--;
+        PPU::doStep();
+        PPU::doStep();
+        PPU::doStep();
     }
 
 /*if r is greater than 255 set Carry flag true
@@ -71,7 +77,7 @@ namespace CPU {
                 return *r;
 
             case 0x2000 ... 0x3FFF: /*TODO return PPU mem access registers*/
-                return 0;
+                return PPU::accessRegisters<wr>(addr, v);
 
             case 0x4000 ... 0x4017: /*TODO APU and I/O registers*/
                 return 0;
@@ -600,11 +606,13 @@ namespace CPU {
     void NOP() { T; }
 
     void exec() {
-        std::cout << " Program Counter " << std::hex << PC;
-        std::cout << " performing OP code " << std::hex << (int) rd(PC);
-        std::cout << " A = " << (int) A << " X = " << (int) X << " Y = " << (int) Y;
-        std::cout << " P =  " << std::hex << (int) P.get();
-        std::cout << " S = " << std::hex << (int) S << std::endl;
+        if (debug) {
+            std::cout << " Program Counter " << std::hex << PC;
+            std::cout << " performing OP code " << std::hex << (int) rd(PC);
+            std::cout << " A = " << (int) A << " X = " << (int) X << " Y = " << (int) Y;
+            std::cout << " P =  " << std::hex << (int) P.get();
+            std::cout << " S = " << std::hex << (int) S << std::endl;
+        }
         switch (rd(PC++)) {
             /*Storage OPs */
             //LDA
@@ -989,9 +997,11 @@ namespace CPU {
 
             default:
                 NOP();
-                std::cout << "undefined op" << std::endl;
-                std::cout << "Op code - " << std::hex << (int) rd(PC - 1) << std::endl;
-                std::cout << "program counter value = " << (int) PC << std::endl;
+                if (debug) {
+                    std::cout << "undefined op" << std::endl;
+                    std::cout << "Op code - " << std::hex << (int) rd(PC - 1) << std::endl;
+                    std::cout << "program counter value = " << (int) PC << std::endl;
+                }
         }
     }
 
@@ -1066,6 +1076,7 @@ namespace CPU {
             }
             exec();
         }
+        std::cout << "poopy pants" << std::endl;
 
         //TODO frame elapsed do the stuff
     }

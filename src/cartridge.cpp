@@ -1,10 +1,12 @@
 #include <cstdio>
 #include <cstdlib>
 #include <iostream>
+
 #include "include/cartridge.hpp"
 #include "include/cpu.hpp"
 #include "include/mapper.hpp"
 #include "include/mappers/mapper0.hpp"
+#include "include/ppu.hpp"
 
 namespace Cartridge {
 
@@ -63,6 +65,7 @@ namespace Cartridge {
 
         //Start running the ROM file
         CPU::power();
+        PPU::power();
         //TODO:  PPU start
     }
 
@@ -72,6 +75,8 @@ namespace Cartridge {
     }
 
     template u8 access<true>(u16, u8);
-
     template u8 access<false>(u16, u8);
+
+    template u8 chr_access<true>(u16, u8);
+    template u8 chr_access<false>(u16, u8);
 } // namespace Cartridge
