@@ -5,6 +5,8 @@
 
 namespace CPU {
 
+    void set_debug(bool debug = true);
+
     /*   Processor Flags
     /    C represents Carry Flag, is used also in shift and rotate ops
     /    Z represents Zero Flag, is set to 1 when any arithmetic or logical

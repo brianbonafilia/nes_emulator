@@ -5,7 +5,7 @@
 #include "include/cartridge.hpp"
 
 int main(int argc, char *argv[]) {
-    std::cout << "the ROM we are using is " << argv[1] << std::endl;
+    //std::cout << "the ROM we are using is " << argv[1] << std::endl;
     Cartridge::load(argv[1]);
     return GUI::init();
 }

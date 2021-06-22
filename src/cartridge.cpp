@@ -26,6 +26,9 @@ namespace Cartridge {
     template<bool wr>
     u8 chr_access(u16 addr, u8 v) {
         //TODO mapper access
+        if (!wr) {
+            return mapper->chr_read(addr);
+        }
         return 0;
     }
 
@@ -54,8 +57,12 @@ namespace Cartridge {
 
         //Find Mapper
         u8 mapperID = (rom[7] & 0xF0) + (rom[6] >> 4);
+        u8 nametableMirroring = rom[6] & 0x1;
+        PPU::Mirroring mirroringType = nametableMirroring ? PPU::vertical : PPU::horizontal;
 
-        std::cout << (int) mapperID << std::endl;
+
+
+        //std::cout << (int) mapperID << std::endl;
 
         switch (mapperID) {
             case 0:
@@ -66,6 +73,7 @@ namespace Cartridge {
         //Start running the ROM file
         CPU::power();
         PPU::power();
+        PPU::set_mirroring(mirroringType);
         //TODO:  PPU start
     }
 

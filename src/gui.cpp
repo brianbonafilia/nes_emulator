@@ -58,7 +58,7 @@ namespace GUI {
 
         SDL_RenderSetLogicalSize(renderer, PIXEL_WIDTH, PIXEL_HEIGHT);
         gamePixels = SDL_CreateTexture(renderer,
-                                       SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING,
+                                       SDL_PIXELFORMAT_XRGB8888, SDL_TEXTUREACCESS_STREAMING,
                                        PIXEL_WIDTH, PIXEL_HEIGHT);
 
         u32 startFrame, endFrame, timeToRunFrame;
@@ -76,9 +76,9 @@ namespace GUI {
             }
             endFrame = SDL_GetTicks();
             timeToRunFrame = endFrame - startFrame;
-            std::cout << "time to tick " << std::to_string(delay) << std::endl;
-            std::cout << "start time: " << std::to_string(startFrame) << std::endl;
-            std::cout << "end time: " << std::to_string(endFrame) << std::endl;
+            //std::cout << "time to tick " << std::to_string(delay) << std::endl;
+            //std::cout << "start time: " << std::to_string(startFrame) << std::endl;
+            //std::cout << "end time: " << std::to_string(endFrame) << std::endl;
             if (timeToRunFrame < delay) {
                 SDL_Delay(delay - timeToRunFrame);
             }

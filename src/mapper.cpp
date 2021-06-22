@@ -9,7 +9,7 @@ Mapper::Mapper(u8 *rom) : rom(rom) {
     chrSize = rom[5] * 0x2000;
     prgRamSize = rom[8] ? rom[8] * 0x2000 : 0x2000;
 
-    std::cout << (int) prgSize << " is the size of prg" << std::endl;
+    //std::cout << (int) prgSize << " is the size of prg" << std::endl;
 
 
     prg = rom + 16;
@@ -44,7 +44,7 @@ u8 Mapper::read(u16 addr) {
 }
 
 u8 Mapper::chr_read(u16 addr) {
-    return 0;
+    return chr[addr % chrSize];
 }
 
 template<int pageKBs>

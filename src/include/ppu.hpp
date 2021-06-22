@@ -4,6 +4,12 @@
 
 namespace PPU {
 
+    enum Mirroring {
+        vertical, horizontal
+    };
+
+    void set_mirroring(Mirroring newMirroring);
+
     template<bool wr>
     u8 accessRegisters(u16 addr, u8 val = 0);
 
@@ -13,5 +19,9 @@ namespace PPU {
     void power();
 
     void doStep();
+
+    int getCycle();
+
+    int getScanline();
 
 }

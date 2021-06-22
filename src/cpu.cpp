@@ -12,6 +12,9 @@ namespace CPU {
 /* CPU state */
 
     bool debug = false;
+    bool test = false;
+
+    int opCode;
 
     u8 A, X, Y, S; //registers, these are as follows
     u16 PC;        // A is Accumulator: supports carrying overflow
@@ -49,6 +52,10 @@ namespace CPU {
         P[V] = ~(x ^ y) & (x ^ r) & 0x80;
     }
 
+    void set_debug(bool val) {
+        debug = val;
+    }
+
 /*if x is negative set Negative flag true
     if x is 0 set Zero Flag true */
     inline void upd_nz(u8 x) {
@@ -77,6 +84,8 @@ namespace CPU {
                 return *r;
 
             case 0x2000 ... 0x3FFF: /*TODO return PPU mem access registers*/
+                //std::cout << "PC : " << std::to_string(PC) << std::endl;
+                //std::cout << "addr : " << std::to_string(addr) << std::endl;
                 return PPU::accessRegisters<wr>(addr, v);
 
             case 0x4000 ... 0x4017: /*TODO APU and I/O registers*/
@@ -356,6 +365,14 @@ namespace CPU {
         T;
     }
 
+    //Shift left one bit, then or with memory
+    template<Mode m>
+    void SLO() {
+        G;
+        P[C] = p & 0xF0;
+        upd_nz(wr(a, p << 1));
+    }
+
     template<Mode m>
     void LSR() {
         G;
@@ -517,7 +534,7 @@ namespace CPU {
         T;
         T;
         u8 temp = pop();
-        std::cout << " putting into P = " << (int) temp << std::endl;
+        //std::cout << " putting into P = " << (int) temp << std::endl;
         P.set(temp);
     }
 //
@@ -561,7 +578,7 @@ namespace CPU {
         PC = pop() | pop() << 8;
         PC++;
 
-        std::cout << "jumpoint to sub from " << std::hex << (int) PC << std::endl;
+        //std::cout << "jumpoint to sub from " << std::hex << (int) PC << std::endl;
         T;
     }
 
@@ -603,17 +620,71 @@ namespace CPU {
         P[C] = (r >= p);
     }
 
+    // Double No op
+    template<Mode m>
+    void DOP() {
+        m();
+        T;
+        T;
+    }
+
+    // Triple No op
+    void TOP() {
+        T;T;T;
+    }
+
+    // increase memory by one
+    template <Mode m>
+    void ISC() {
+        G;
+        p++;
+        upd_cv(A, -p, a);
+        wr(a, p);
+        A -= p + P[C];
+    }
+
+    // Shift right one bit then EOR accumulator with memory
+    template <Mode m>
+    void SRE() {
+
+    }
+
+    template <Mode m>
+    void DCP() {
+        G;
+        wr(a, p--);
+    }
+
     void NOP() { T; }
 
     void exec() {
         if (debug) {
-            std::cout << " Program Counter " << std::hex << PC;
+            //sleep(1);
+            std::cout << " Program Counter " << std::hex << PC % 0x8000;
             std::cout << " performing OP code " << std::hex << (int) rd(PC);
             std::cout << " A = " << (int) A << " X = " << (int) X << " Y = " << (int) Y;
             std::cout << " P =  " << std::hex << (int) P.get();
             std::cout << " S = " << std::hex << (int) S << std::endl;
+        } if (test) {
+            std::cout << std::uppercase << std::hex << PC;
+            std::cout << " " << std::hex << (int) rd(PC);
+            std::cout << " A:" << (int) A << " X:" << (int) X << " Y:" << (int) Y;
+            std::cout << " P:" << std::hex << (int) P.get();
+            std::cout << " S:" << std::hex << (int) S;
+            std::cout << " CYC:" << std::to_string(PPU::getCycle());
+            std::cout << " SL:" << std::to_string(PPU::getScanline()) << std::endl;
         }
-        switch (rd(PC++)) {
+        opCode = rd(PC++);
+        switch (opCode) {
+
+            case 0x03:
+                return SLO<izx>();
+            case 0x14:
+                return DOP<zpx>();
+            case 0x1A:
+                return NOP();
+            case 0x1C:
+                return TOP();
             /*Storage OPs */
             //LDA
             case 0xA9:
@@ -993,14 +1064,34 @@ namespace CPU {
                 //Unofficial
             case 0x04:
                 PC++;
-                NOP();
+                return NOP();
+            case 0xFF:
+                //return exit(1);
+                exit(0);
+                //return ISC<abx>();
+            case 0xCF:
+                return DCP<abs>();
+            case 0xD3:
+                return DCP<izy>();
+            case 0xD7:
+                 return DCP<zpx>();
+            case 0xDB:
+                return DCP<aby>();
+            case 0xDF:
+                return DCP<abx>();
+            case 0xC7:
+                return DCP<zp>();
+
+            case 0xD2:
+                exit(1);
+
 
             default:
                 NOP();
-                if (debug) {
+                if (debug == false) {
                     std::cout << "undefined op" << std::endl;
                     std::cout << "Op code - " << std::hex << (int) rd(PC - 1) << std::endl;
-                    std::cout << "program counter value = " << (int) PC << std::endl;
+                    //std::cout << "program counter value = " << (int) PC << std::endl;
                 }
         }
     }
@@ -1020,7 +1111,7 @@ namespace CPU {
         T;
         T;
         PC = rd16(0xFFFC);
-        PC = 0xC000;
+        //PC = 0xC000;
     }
 
 //regular interrupt request
@@ -1033,7 +1124,7 @@ namespace CPU {
         PC = rd16(0xFFFE);
     }
 
-//non maskable interrupt
+    //non maskable interrupt
     void nmi_interrupt() {
         T;
         T;
@@ -1076,8 +1167,6 @@ namespace CPU {
             }
             exec();
         }
-        std::cout << "poopy pants" << std::endl;
-
         //TODO frame elapsed do the stuff
     }
 } // namespace CPU
