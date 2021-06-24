@@ -193,7 +193,9 @@ namespace CPU {
     template<Mode m>
     void LDA() {
         u16 a = m();
+     //   printf("    a is %x    ", a);
         u8 t = rd(a);
+       // printf("    new val for A is %x   ", t);
         upd_nz(t);
         A = t;
     }
@@ -202,7 +204,9 @@ namespace CPU {
     template<Mode m>
     void LDX() {
         u16 a = m();
+        //printf(" a is $%02X",a);
         u8 t = rd(a);
+        //printf(" t is %d   ", t);
         upd_nz(t);
         X = t;
     }
@@ -409,15 +413,17 @@ namespace CPU {
     template<Mode m>
     void ROR() {
         G;
+        u8 carry = P[C];
         P[C] = p & 0x01;
-        p = (p >> 1) + (P[C] << 7);
+        p = (p >> 1) + (carry << 7);
         upd_nz(wr(a, p));
         T;
     }
 
     void ROR() {
-        P[C] = A & 0x01;
+        u8 carry = A & 0x1;
         A = (A >> 1) + (P[C] << 7);
+        P[C] = carry;
         upd_nz(A);
         T;
     }
@@ -659,20 +665,19 @@ namespace CPU {
 
     void exec() {
         if (debug) {
-            //sleep(1);
+            sleep(1);
             std::cout << " Program Counter " << std::hex << PC % 0x8000;
             std::cout << " performing OP code " << std::hex << (int) rd(PC);
             std::cout << " A = " << (int) A << " X = " << (int) X << " Y = " << (int) Y;
             std::cout << " P =  " << std::hex << (int) P.get();
             std::cout << " S = " << std::hex << (int) S << std::endl;
         } if (test) {
-            std::cout << std::uppercase << std::hex << PC;
-            std::cout << " " << std::hex << (int) rd(PC);
-            std::cout << " A:" << (int) A << " X:" << (int) X << " Y:" << (int) Y;
-            std::cout << " P:" << std::hex << (int) P.get();
-            std::cout << " S:" << std::hex << (int) S;
-            std::cout << " CYC:" << std::to_string(PPU::getCycle());
-            std::cout << " SL:" << std::to_string(PPU::getScanline()) << std::endl;
+            printf("%04X ", PC);
+//            std::cout << " " << std::hex << (int) rd(PC);
+//            std::cout << " A:" << (int) A << " X:" << (int) X << " Y:" << (int) Y;
+            printf("%02X A:%02X X:%02X Y:%02X P:%02X SP:%02X \n",rd(PC), A, X, Y, P.get(), S);
+//            std::cout << " CYC:" << std::to_string(PPU::getCycle());
+//            std::cout << " SL:" << std::to_string(PPU::getScanline()) << std::endl;
         }
         opCode = rd(PC++);
         switch (opCode) {
@@ -709,7 +714,7 @@ namespace CPU {
             case 0xA6:
                 return LDX<zp>();
             case 0xB6:
-                return LDX<zpx>();
+                return LDX<zpy>();
             case 0xAE:
                 return LDX<abs>();
             case 0xBE:
@@ -1160,6 +1165,7 @@ namespace CPU {
             /*interrupt */
             if (nmi) {
                 nmi_interrupt();
+                printf("did inter");
             }
                 /*other interrupt: also do stuff */
             else if (irq and !P[I]) {
