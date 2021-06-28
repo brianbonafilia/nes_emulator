@@ -1165,7 +1165,6 @@ namespace CPU {
             /*interrupt */
             if (nmi) {
                 nmi_interrupt();
-                printf("did inter");
             }
                 /*other interrupt: also do stuff */
             else if (irq and !P[I]) {

@@ -12,7 +12,7 @@
 #include "include/cpu.hpp"
 
 namespace PPU {
-    bool debug = false;
+    bool debug = true;
 
     /**
      * PPU control 0x2000
@@ -138,8 +138,6 @@ namespace PPU {
     Mirroring mirroring;
 
     u32 pixels[256*240];
-    u32 sum = 0;
-    u32 tenSeconds = 0;
 
     u32 pallete[] = {
             0x00545454, 0x00001e74, 0x00081090, 0x00300088,
@@ -249,10 +247,13 @@ namespace PPU {
     }
 
     void drawNametable() {
+        int sl = 0;
+        printf("scanline %04d   ", sl * 8);
         for (int i = 0; i < 1024; i++) {
             printf("%02X ", ppu_read(0x2000 + i));
             if (i % 32 == 31) {
-                printf("\n");
+                sl++;
+                printf("\nscanline %04d   ", sl * 8);
             }
         }
     }
@@ -261,7 +262,7 @@ namespace PPU {
     ppu_write(u16 addr, u8 value) {
         switch(addr) {
             case 0x2000 ... 0x2FFF:
-                printf("oh lowrd 0x%x, value 0x%x \n", addr, value);
+//                printf("oh lowrd 0x%x, value 0x%x \n", addr, value);
                 return vRam[get_nametable_mirroring(addr)] = value;
             case 0x3000 ... 0x3EFF:
                 return ppu_write(addr - 0x1000, value);
@@ -311,6 +312,7 @@ namespace PPU {
         u16 tilePos = (u16) nametable << 4;
         u16 patternTableSelect = (ppuCtl & 0x10)  << 8;
         u16 fineY = (0x7000 & vRamAddr) >> 12;
+        //printf("tilePos: %d,  patterntableSelect %X,  fineY %d", tilePos, patternTableSelect, fineY);
         return patternTableSelect | tilePos | fineY;
     }
 
@@ -321,24 +323,39 @@ namespace PPU {
         att >>= fineXScroll;
         att *= 4;
         val += att;
-        fineXScroll++;
-        fineXScroll %= 8;
 
         u8 color = ppu_read(0x3F00 + val);
         if (!rendering()) {
             color = 0;
         }
-        if (debug) {
-            std::cout << "mask is " << std::bitset<16>(mask) << std::endl;
-            std::cout << "bgPatternHigh is " << std::bitset<16>(bgHighShifter) << std::endl;
-            std::cout << "bgPatternLow is " << std::bitset<16>(bgLowShifter) << std::endl;
+        if (debug && scanline >= 32 && scanline < 40 && cycle >= 0  && cycle < 8) {
+//            std::cout << "mask is " << std::bitset<16>(mask);
+//            std::cout << " bgPatternHigh is " << std::bitset<16>(bgHighShifter);
+//            std::cout << " bgPatternLow is " << std::bitset<16>(bgLowShifter);
+//            std::cout << " bgHigh is " << std::bitset<8>(bgHigh);
+//            std::cout << " bgLow is " << std::bitset<8>(bgLow);
 //            std::cout << "bgAttributeLow is " << std::hex << (int) bgAttributeLow << std::endl;
 //            std::cout << "bgAttributeHigh is " << std::hex << (int) bgAttributeHigh << std::endl;
-            std::cout << "fineX is " << std::to_string(fineXScroll) << std::endl;
-            printf("value is %x  color is %x \n", val, color);
-            printf("vRamAddr is %x \n", vRamAddr & 0x3FFF);
+//            std::cout << " fineX is " << std::to_string(fineXScroll);
+//            printf(" value is %x  color is %x \n", val, color, scanline);
+//            printf(" fineX is %d cycle is %d sl is %d\n", fineXScroll, cycle, scanline);
+//            printf(" vRamAddr is %x \n", vRamAddr & 0x3FFF);
+            printf("%d ",val);
+            if (cycle == 7) {
+                printf("\n");
+            }
         }
-        pixels[scanline * 240 + cycle] = color;
+        if (cycle == 7 && scanline == 40) {
+            printf("\n");
+        }
+//        int pos = scanline * 256 + cycle;
+//        if (pos == 9248) {
+//            printf("sl is %d cycle is %d", scanline, cycle);
+//            printf("val is %d \n", val);
+//        }
+        pixels[scanline * 256 + cycle] = pallete[color];
+        fineXScroll++;
+        fineXScroll %= 8;
     }
 
     void shiftHorizontal() {
@@ -346,6 +363,7 @@ namespace PPU {
             return;
         }
         if ((vRamAddr & 0X1F) == 31) {
+            //printf("flagnabit");
             vRamAddr &= ~0x1F;
             vRamAddr ^= 0x400;
         } else {
@@ -357,10 +375,8 @@ namespace PPU {
     }
 
     void shiftVertical() {
-        //printf("fart \n");
         int fineY = (vRamAddr & 0x7000) >> 12;
-        //printf("fineY is : %d \n", fineY);
-        //printf("0x%x \n", vRamAddr);
+//        printf("fineY is : %d  cycle is %d scanline is %d\n", fineY, cycle, scanline);
         if (!rendering()) {
             return;
         }
@@ -380,66 +396,82 @@ namespace PPU {
             }
             vRamAddr = (vRamAddr & ~0x3E0) | (coarseY << 5);
             coarseY = (vRamAddr & 0x3E0) >> 5;
-            //printf("new coarseY is : %d \n", coarseY);
+//            printf("new coarseY is : %d \n", coarseY);
         }
         fineY = (vRamAddr & 0x7000) >> 12;
-        //printf("fineY is : %d \n", fineY);
-        //printf("new vram addr 0x%x \n", vRamAddr);
+//        printf("fineY is : %d \n", fineY);
+//        printf("new vram addr 0x%x \n", vRamAddr);
     }
 
-    void scan_line() {
-        if (scanline > -1 && scanline < 241) {
-            writePixel();
-        }
+    bool isVisibleScanline() {
+        return scanline > -1 && scanline < 240;
+    }
+
+    bool isVisibleCycle() {
+        return cycle > 0 && cycle < 257;
+    }
+
+    bool isVerticleBlankingScanline() {
+        return scanline > 240 && scanline < 261;
+    }
+
+    void setInterruptToCpuIfNeeded() {
         if (scanline == 241 && cycle == 1) {
-            count++;
             if (ppuCtl & 0x80) {
-                //printf("did inter \n");
                 CPU::set_nmi();
             }
         }
+    }
+
+    /**
+     * perform one step for the current scanline
+     */
+    void scan_line() {
+        setInterruptToCpuIfNeeded();
+        if (isVisibleCycle() && isVisibleScanline()) {
+            writePixel();
+        }
+        if (isVerticleBlankingScanline()) {
+            return;
+        }
         switch (cycle % 8) {
             case 0:
-                loadShifters();
+                if (cycle < 256) {
+                    loadShifters();
+                }
                 break;
             case 1:
                 renderingAddr = getNametableByteAddr();
                 nametable = ppu_read(renderingAddr);
-//                printf("Nametable byte addr %x \n", renderingAddr);
-//                printf("nametable byte %x\n", nametable);
+                if (scanline > 30 && scanline < 40) {
+                    printf("nametable byte is 0x%X", nametable);
+                }
                 break;
 
             case 3:
                 renderingAddr = getAttributeByteAddr();
                 attributeByte = ppu_read(renderingAddr);
-//                printf("Attribute byte addr %x \n", renderingAddr);
                 break;
             case 5:
                 renderingAddr = getPatternTableLowAddr();
                 bgLow = ppu_read(renderingAddr);
-//                printf("Patterntable low byte addr %x \n", renderingAddr);
                 break;
             case 7:
                 renderingAddr += 8;
-//                printf("Patterntable byte addr %x \n", renderingAddr);
                 bgHigh = ppu_read(renderingAddr);
-//                printf("Patterntable  val %x \n", bgHigh);
-//                printf("vramAddr is %04X", vRamAddr);
-                shiftHorizontal();
+                if (cycle < 256 || cycle > 320) {
+                    shiftHorizontal();
+                }
                 break;
         }
         if (cycle == 256) {
             shiftVertical();
         }
-        if (cycle == 257) {
-            vRamAddr = vRamAddr | (temporaryVramAddr & 0x41F);
-        } else if (cycle > 280 && cycle < 304) {
-            vRamAddr = vRamAddr | (temporaryVramAddr & 0x7be0);
+        if (cycle == 257 && rendering()) {
+            vRamAddr = (vRamAddr & ~0x041F) | (temporaryVramAddr & 0x41F);
+        } else if (rendering() && cycle > 280 && cycle < 304 && scanline == 261) {
+            vRamAddr = (vRamAddr & ~0x7BE0) | (temporaryVramAddr & 0x7be0);
         }
-        //printf("vramAddr is %x\n", vRamAddr);
-        /*td::cout << "this is current vramAddr " <<  std::hex << vRamAddr << std::endl;
-        std::cout << "this is current renderingAddr " <<  std::hex << renderingAddr << std::endl;*/
-        return;
     }
 
     void printPatternTable(int addr) {
@@ -449,17 +481,36 @@ namespace PPU {
         }
     }
 
+    void drawAttrTable() {
+        for (int i = 0; i < 64; i++) {
+            printf("%02X ", ppu_read(0x23C0 + i));
+            if (i % 8 == 7) {
+                printf("\n");
+            }
+        }
+    }
+
     void drawPatterns() {
-        palleteRam[1] = 10;
-        palleteRam[0] = 20;
-        palleteRam[3] = 30;
-        palleteRam[2] = 40;
+        drawNametable();
+        drawAttrTable();
         for (int tileRow = 0; tileRow < 30; tileRow++) {
             for (int tile = 0; tile < 32; tile++) {
+                u16 attrAddr = 0x23C0 + ((tileRow / 4) * 8) + (tile / 4);
+                u8 attrByte = ppu_read(attrAddr);
+                u8 mask = 3;
+                u8 shiftAmount = 0;
+                if (tileRow % 8 > 3) {
+                    shiftAmount += 4;
+                } if (tile % 8 > 3) {
+                    shiftAmount += 2;
+                }
+                u8 attrVal = ((mask << shiftAmount) & attrByte) >> shiftAmount;
+//                printf("addr %X attrByte %X ,   tileRow %d, tileCol %d, shiftAmount %d\n",attrAddr, attrByte, tileRow % 8, tile % 8, shiftAmount);
+//                printf("%d \n",attrVal);
                 u16 lowByteAddr = ppu_read(0x2000 + 32 * tileRow + tile);
+                //printPatternTable(0x2000 + 32 * tileRow + tile);
                 lowByteAddr = 0x1000 + (lowByteAddr) * 16;
                 u16 highByteAddr = lowByteAddr + 8;
-
                 for (int row = 0; row < 8; row++) {
                     for (int col = 0; col < 8; col++) {
                         u8 lowByte = Cartridge::chr_access<false>(lowByteAddr + row);
@@ -468,7 +519,7 @@ namespace PPU {
                         u8 lowBit = lowByte & mask ? 1 : 0;
                         u8 highBit = highByte & mask ? 2 : 0;
                         u8 color = lowBit + highBit;
-                        pixels[256 * (row + tileRow * 8) + (col + tile * 8)] = pallete[palleteRam[color]];
+                        pixels[256 * (row + tileRow * 8) + (col + tile * 8)] = pallete[attrVal * 0 + palleteRam[color]];
                     }
                 }
             }
@@ -476,26 +527,21 @@ namespace PPU {
     }
 
     void doStep() {
-        cycle++;
         scan_line();
+        cycle++;
         if (cycle == 341) {
+            count++;
             cycle = 0;
             scanline++;
         }
         if (scanline == 241 && cycle == 1) {
             // set vblank on ppuStatus
             ppuStatus |= 0x80;
-            //vRamAddr = temporaryVramAddr;
-            //std::cout << "well it happened :/ " << std::to_string(ppuStatus) << std::endl;
         }
-        if (scanline == 260) {
+        if (scanline > 261) {
             scanline = 0;
-            //drawPatterns();
-            GUI::update_frame(pixels);
-            if (tenSeconds++ > 60) {
-                tenSeconds = 0;
-                sum = ++sum % 64;
-            }
+            count = 0;
+            GUI::update_frame(pixels);\
         }
     }
 
@@ -504,20 +550,26 @@ namespace PPU {
         //std::cout << "access register " << std::hex << addr << std::endl;
         u8 num;
         u16 index = (addr - 0x2000) % 8;
-        if (index != 7) {
+        if (index == 9) {
             std::cout << "access register " << std::to_string(index) << std::endl;
+            printf("   cycle is %d scanline is %d\n", cycle, scanline);
             printf("register addr %x \n", addr);
             if (wr) {
                 printf("writing new value 0x%x \n", val);
             }
         }
+        u16 nametableVal;
+        u16 mask;
         if (wr) {
             switch (index) {
                 case 0:
                     ppuCtl = val;
-                    if (val == 0x7F) {
-                        exit(0);
-                    }
+                    nametableVal = (val & 0x3) << 10;
+                    mask = 3 << 10;
+                    temporaryVramAddr &= ~mask;
+                    temporaryVramAddr |= nametableVal;
+//                    printf("temporary vram is %04X",nametableVal);
+//                    printf("temporary vram is %04X",temporaryVramAddr);
                     return ppuCtl;
                 case 1:
                     ppuMask = val;
@@ -530,24 +582,33 @@ namespace PPU {
                     return val;
                 case 5:
                     if (!addressLatch) {
+//                        std::cout << "temporary vram " << std::bitset<16>(temporaryVramAddr) << std::endl;
                         fineXScroll = val & 0x7;
                         temporaryVramAddr &= ~0x1f;
                         temporaryVramAddr |= (val & 0xF8) >> 3;
+//                        std::cout << "temporary vram " << std::bitset<16>(temporaryVramAddr) << std::endl;
+//                        std::cout << "new val " << std::bitset<8>(val) << std::endl;
                     } else {
+//                        std::cout << "temporary vram " << std::bitset<16>(temporaryVramAddr) << std::endl;
+//                        std::cout << "new val " << std::bitset<8>(val) << std::endl;
                         u16 fineY = val & 0x7;
-                        fineY <<= 9;
+                        fineY <<= 12;
                         u16 coarseY = (val & 0xF8) >> 3;
 //                        printf("coarse y is %d", coarseY);
                         coarseY <<= 5;
-                        temporaryVramAddr &= ~0x3e0;
+                        temporaryVramAddr &= ~0x73e0;
                         temporaryVramAddr |= (fineY | coarseY);
+//                        std::cout << "temporary vram " << std::bitset<16>(temporaryVramAddr) << std::endl;
+//                        std::cout << "new val " << std::bitset<8>(val) << std::endl;
+//                        printf("new vramAddr is 0x%x \n", temporaryVramAddr);
+//                        printf("finey is %d \n", temporaryVramAddr >> 12);
                     }
 //                    printf("tram addr is %x \n", temporaryVramAddr);
                     addressLatch = !addressLatch;
                     return val;
                 case 6:
-                    // TODO: use temporary vram addr and do appropriate swap
                     if (!addressLatch) {
+                        std::cout << "temporary vram " << std::bitset<16>(temporaryVramAddr) << std::endl;
                         temporaryVramAddr = (temporaryVramAddr & 0xFF) | (u16) (0x3F & val) << 8;
                         std::cout << "temporary vram " << std::bitset<16>(temporaryVramAddr) << std::endl;
                         std::cout << "new val " << std::bitset<8>(val) << std::endl;
@@ -561,7 +622,7 @@ namespace PPU {
                     addressLatch = !addressLatch;
                     return val;
                 case 7:
-                    printf("writing to ppuAddr 0x%x value 0x%02X \n", vRamAddr&0x3FFF, val);
+//                    printf("writing to ppuAddr 0x%x value 0x%02X \n", vRamAddr&0x3FFF, val);
                     num =  ppu_write(vRamAddr & 0x3FFF, val);
                     vRamAddr += ppuCtl & 0x4 ? 32 : 1;
                     return num;
