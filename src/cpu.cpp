@@ -33,9 +33,13 @@ namespace CPU {
 
     inline int elapsed() { return TOTAL_CYCLES - remainingCycles; }
 
-/*defining method tick to be T will make easier to include, in  many places
-    tick will be called during each operation */
-#define T tick()
+    void transferToOamWithDma(u16 addr);
+
+/**
+ * defining method tick to be t will make easier to include, in  many places
+ * tick will be called during each operation
+ */
+ #define T tick()
 
     inline void tick() {
         remainingCycles--;
@@ -44,9 +48,11 @@ namespace CPU {
         PPU::doStep();
     }
 
-/*if r is greater than 255 set Carry flag true
-    if x + y creates overflow, i.e. x and y are same sign(+/-) and adding 
-    creates opposite sign than they have overflowed */
+    /**
+     * if r is greater than 255 set Carry flag true
+     * if x + y creates overflow, i.e. x and y are same sign(+/-) and adding
+     * creates opposite sign than they have overflowed
+     */
     inline void upd_cv(u8 x, u8 y, u16 r) {
         P[C] = (r > 0xFF);
         P[V] = ~(x ^ y) & (x ^ r) & 0x80;
@@ -56,14 +62,17 @@ namespace CPU {
         debug = val;
     }
 
-/*if x is negative set Negative flag true
-    if x is 0 set Zero Flag true */
+    /**
+     * if x is negative set Negative flag true if x is 0 set Zero Flag true
+     */
     inline void upd_nz(u8 x) {
         P[N] = x & 0x80;
         P[Z] = (x == 0);
     }
 
-/* if a + i crosses a page(256 mem spots long) return true */
+    /**
+     * if a + i crosses a page(256 mem spots long) return true
+     */
     inline bool cross(u16 a, u8 i) {
         return ((a + i) & 0xFF00) != (a & 0xFF00);
     }
@@ -83,19 +92,34 @@ namespace CPU {
                     *r = v;
                 return *r;
 
-            case 0x2000 ... 0x3FFF: /*TODO return PPU mem access registers*/
-                //std::cout << "PC : " << std::to_string(PC) << std::endl;
-                //std::cout << "addr : " << std::to_string(addr) << std::endl;
+            case 0x2000 ... 0x3FFF:
                 return PPU::accessRegisters<wr>(addr, v);
 
-            case 0x4000 ... 0x4017: /*TODO APU and I/O registers*/
+            case 0x4000 ... 0x4013: /*TODO APU and I/O registers*/
                 return 0;
-
+            case 0x4014:
+                transferToOamWithDma((u16)v << 8);
+                return 0;
+            case 0x4016 ... 0x4017:
+                return 0;
             case 0x4020 ... 0xFFFF: /*TODO Cartridge space: PRG ROM, PRG RAM, and
 			       mapper registers */
                 return Cartridge::access<wr>(addr, v);
         }
         return 0;
+    }
+
+    /**
+     *  Use direct memory access to transfer to PPU OAM
+     */
+    void transferToOamWithDma(u16 addr) {
+        for (int i = 0; i < 0xFF; i++) {
+            T;
+            if (i < 0xFE || remainingCycles % 2 == 0) {
+                T;
+            }
+            PPU::transferToOamDma(access<false>(addr + i),i);
+        }
     }
 
 /*ways to access memory*/
@@ -1105,7 +1129,9 @@ namespace CPU {
 
     void set_irq(bool v) { irq = v; }
 
-//reset interrupt
+    /**
+     * reset interrupt
+     */
     void reset() {
         S -= 3;
         set_irq();
@@ -1119,7 +1145,9 @@ namespace CPU {
         //PC = 0xC000;
     }
 
-//regular interrupt request
+    /**
+     * regular interrupt request
+     */
     void irq_interrupt() {
         T;
         T;
@@ -1129,7 +1157,9 @@ namespace CPU {
         PC = rd16(0xFFFE);
     }
 
-    //non maskable interrupt
+    /**
+     * non maskable interrupt
+     */
     void nmi_interrupt() {
         T;
         T;
@@ -1140,7 +1170,9 @@ namespace CPU {
         nmi = false;
     }
 
-//set up CPU state on start
+    /**
+     * set up CPU state on start
+     */
     void power() {
         A = 0;
         X = 0;
@@ -1172,6 +1204,5 @@ namespace CPU {
             }
             exec();
         }
-        //TODO frame elapsed do the stuff
     }
 } // namespace CPU

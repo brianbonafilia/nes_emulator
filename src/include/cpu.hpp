@@ -60,5 +60,4 @@ namespace CPU {
     void power();
 
     void run_frame();
-
 }

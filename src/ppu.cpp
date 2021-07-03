@@ -102,6 +102,19 @@ namespace PPU {
     u8 OAM[0x100];
 
     /**
+     * Secondary OAM buffer
+     */
+     u8 secondaryOamBuffer[0x40];
+
+     u8 spriteIndex;
+     u8 coordinateIndex;
+     u8 secondaryOamIndex;
+
+     u8 spritePatterns[16];
+     u8 counters[8];
+     u8 attributeLatches[8];
+
+    /**
      * represents step we are on
      *
      *  261 or 260 unclear
@@ -122,8 +135,6 @@ namespace PPU {
      * Reading from ppuStatus resets the latch
      */
     bool addressLatch;
-
-    int count = 0;
 
     int getCycle() {
         return cycle;
@@ -169,7 +180,7 @@ namespace PPU {
      */
     u16 vRamAddr, temporaryVramAddr;
     u8 fineXScroll;
-    bool firstOrSecondWriteToggle;
+
     /**
      * These internal PPU registers contain the pattern table data
      *
@@ -180,7 +191,7 @@ namespace PPU {
     /**
      * The contain pallete information for lower 8 bits of pattern table data
      */
-    u8 bgAttributeLow, bgAttributeHigh;
+    u16 bgAttributeLow, bgAttributeHigh;
 
     /**
      * latches which load into registers
@@ -191,10 +202,6 @@ namespace PPU {
      * This is what I use to keep track of last address used
      */
     u16 renderingAddr;
-
-    enum Mode {
-        preRender, visible, postRender, verticalBlankLining
-    };
 
     void set_mirroring(Mirroring newMirroring) {
         mirroring = newMirroring;
@@ -262,24 +269,33 @@ namespace PPU {
     ppu_write(u16 addr, u8 value) {
         switch(addr) {
             case 0x2000 ... 0x2FFF:
-//                printf("oh lowrd 0x%x, value 0x%x \n", addr, value);
                 return vRam[get_nametable_mirroring(addr)] = value;
             case 0x3000 ... 0x3EFF:
                 return ppu_write(addr - 0x1000, value);
             case 0x3F00 ... 0x3FFF:
-                //printf("Writing to palleteAddr 0x%x, value %d \n",
-                       //(addr - 0x3F00) % 0x20, value);
                 return palleteRam[(addr - 0x3F00) % 0x20] = value;
             default:
                 printf("fucl \n");
-                //exit(1);
         }
         return 0;
     }
 
+    void transferToOamDma(u8 dataTransfer, int index) {
+        OAM[index] = dataTransfer;
+    }
+
     void loadShifters() {
-        bgAttributeLow = attributeByte & 1 ? 0xFF : 0x00;
-        bgAttributeHigh = attributeByte & 2 ? 0xFF : 0x00;
+        u16 coarseY = (vRamAddr & 0x3E0) >> 5;
+        u16 coarseX = vRamAddr & 0x1F;
+        u8 shiftAmount = 0;
+        if (coarseX % 4 > 1) {
+            shiftAmount += 2;
+        }
+        if (coarseY % 4 > 1) {
+            shiftAmount += 4;
+        }
+        bgAttributeLow = ((bgAttributeLow << 8) & 0xFF00) | (attributeByte & (1 << shiftAmount) ? 0xFF : 0x00);
+        bgAttributeHigh = ((bgAttributeHigh << 8) & 0xFF00) | (attributeByte & (2 << shiftAmount) ? 0xFF : 0x00);
         bgLowShifter = ((bgLowShifter << 8) & 0xFF00) | bgLow;
         bgHighShifter = ((bgHighShifter << 8) & 0xFF00) | bgHigh;
     }
@@ -305,6 +321,13 @@ namespace PPU {
                         | ((vRamAddr >> 2) & 0x07);
     }
 
+    u16 getSpriteTableLowAddr(u8 tileIndex, u8 yPos) {
+        u16 tilePos = (u16) tileIndex << 4;
+        u16 spriteTableSelect = (ppuCtl & 0x8) ? 0x1000 : 0;
+        u16 fineY = (scanline - yPos);
+        return spriteTableSelect | tilePos | fineY;
+    }
+
     /**
      * 32x30 tiles,  each vramAddr represents a tile.
      */
@@ -318,9 +341,8 @@ namespace PPU {
 
     void writePixel() {
         u16 mask = 0x8000 >> fineXScroll;
-        u16 att = 0;//(bgAttributeHigh & (0x80 >> fineXScroll) ? 2 : 1) + (bgAttributeLow & (0x80 >> fineXScroll) ? 1 : 0);
+        u16 att = (bgAttributeHigh & 0x8000 ? 2 : 0) + (bgAttributeLow & 0x8000  ? 1 : 0);
         u16 val = (bgLowShifter & mask ? 1 : 0) + (bgHighShifter & mask ? 2 : 0);
-        att >>= fineXScroll;
         att *= 4;
         val += att;
 
@@ -328,34 +350,115 @@ namespace PPU {
         if (!rendering()) {
             color = 0;
         }
-        if (debug && scanline >= 32 && scanline < 40 && cycle >= 0  && cycle < 8) {
-//            std::cout << "mask is " << std::bitset<16>(mask);
-//            std::cout << " bgPatternHigh is " << std::bitset<16>(bgHighShifter);
-//            std::cout << " bgPatternLow is " << std::bitset<16>(bgLowShifter);
-//            std::cout << " bgHigh is " << std::bitset<8>(bgHigh);
-//            std::cout << " bgLow is " << std::bitset<8>(bgLow);
-//            std::cout << "bgAttributeLow is " << std::hex << (int) bgAttributeLow << std::endl;
-//            std::cout << "bgAttributeHigh is " << std::hex << (int) bgAttributeHigh << std::endl;
-//            std::cout << " fineX is " << std::to_string(fineXScroll);
-//            printf(" value is %x  color is %x \n", val, color, scanline);
-//            printf(" fineX is %d cycle is %d sl is %d\n", fineXScroll, cycle, scanline);
-//            printf(" vRamAddr is %x \n", vRamAddr & 0x3FFF);
-            printf("%d ",val);
-            if (cycle == 7) {
-                printf("\n");
+        u8 spriteColor = 0;
+        for (int sprite = 0; sprite < 8; sprite++) {
+            if(counters[sprite] == 0 && (spritePatterns[sprite * 2] || spritePatterns[sprite * 2 + 1])) {
+//                printf("SL is %d,  cycles is %d, tile is %d, sprite index is %d\n"
+//                        , scanline, cycle, secondaryOamBuffer[sprite * 4 + 1], sprite);
+//                printf("sprite pattern is %X sprite pattern is %X \n",
+//                       spritePatterns[sprite*2] , spritePatterns[2*sprite + 1]);
+                //std::cout << std::bitset<8>()
+                u8 spriteMask = attributeLatches[sprite] & 0x40 ? 0x1 : 0x80;
+                spriteColor = (spriteMask & spritePatterns[sprite * 2] ? 1 : 0)
+                        + (spriteMask & spritePatterns[sprite * 2 + 1] ? 2 : 0);
+                u8 spriteAttr = attributeLatches[sprite] & 0x3;
+                if (spriteColor != 0) {
+                    spriteColor = 4 * (4 + spriteAttr) + spriteColor;
+                }
+                if (spriteMask == 0x1) {
+                    spritePatterns[sprite * 2] >>= 1;
+                    spritePatterns[sprite * 2 + 1] >>= 1;
+                } else {
+                    spritePatterns[sprite * 2] <<= 1;
+                    spritePatterns[sprite * 2 + 1] <<= 1;
+                }
+            } else {
+                counters[sprite]--;
             }
         }
-        if (cycle == 7 && scanline == 40) {
-            printf("\n");
+        if (spriteColor != 0) {
+            //printf("SL %d,  cycle %d \t", scanline, cycle);
+            color = ppu_read(0x3F00 + spriteColor);
         }
-//        int pos = scanline * 256 + cycle;
-//        if (pos == 9248) {
-//            printf("sl is %d cycle is %d", scanline, cycle);
-//            printf("val is %d \n", val);
-//        }
         pixels[scanline * 256 + cycle] = pallete[color];
         fineXScroll++;
         fineXScroll %= 8;
+    }
+
+    void evaluateSprites() {
+        switch (cycle) {
+            case 1 ... 64:
+                secondaryOamBuffer[cycle - 1] = 0xFF;
+                break;
+            case 65 ... 256:
+                if (cycle == 65) {
+                    spriteIndex = 0;
+                    coordinateIndex = 0;
+                    secondaryOamIndex = 0;
+                }
+                if (cycle % 2 == 0) {
+                    u8 y;
+                    switch (coordinateIndex) {
+                        case 0:
+                            y = OAM[(spriteIndex * 4) % 0x100];
+                            if (scanline >= y && scanline < y + 8) {
+//                                printf("SL is %d,  cycles is %d, sOAM index is %d, sprite index is %d\n"
+//                                        , scanline, cycle, secondaryOamIndex, spriteIndex);
+                                secondaryOamBuffer[secondaryOamIndex++] = y;
+                                coordinateIndex++;
+                            } else {
+                                spriteIndex++;
+                            }
+                            break;
+                        case 1 ... 3:
+                            u8 val = OAM[(spriteIndex * 4) + coordinateIndex];
+                            secondaryOamBuffer[secondaryOamIndex++] = val;
+                            coordinateIndex = coordinateIndex + 1;
+                            if (coordinateIndex == 4) {
+                                spriteIndex++;
+                                coordinateIndex = 0;
+                            }
+                            break;
+                    }
+                    spriteIndex %= 63;
+                    secondaryOamIndex %= 64;
+                }
+                break;
+            case 321:
+                if (secondaryOamIndex > 0) {
+                    printf("SL is %d, secondaryOamIndex %d \n",
+                           scanline, secondaryOamIndex);
+                    for (int i = 0; i < secondaryOamIndex; i++) {
+                        printf("%02X ", secondaryOamBuffer[i]);
+                        if (i % 8 == 7) {
+                            printf("\n");
+                        }
+                    }
+                    printf("\n");
+                }
+            case 257 ... 320:
+                u8 sprite = (cycle - 257) / 8;
+                if (cycle % 8 == 0) {
+                    if (sprite * 4 >= secondaryOamIndex) {
+                        counters[sprite] = 0xFF;
+                        spritePatterns[sprite] = 0x00;
+                        spritePatterns[sprite+1] = 0x00;
+                    } else {
+//                        printf("SL is %d,  cycles is %d, tile is %X, sprite index is %d\n"
+//                               , scanline, cycle, secondaryOamBuffer[sprite * 4 + 1], sprite);
+                        counters[sprite] = secondaryOamBuffer[sprite * 4 + 3];
+                        attributeLatches[sprite] = secondaryOamBuffer[sprite * 4 + 2];
+                        u16 lowAddr = getSpriteTableLowAddr(
+                                secondaryOamBuffer[sprite * 4 + 1],secondaryOamBuffer[sprite * 4]);
+                        spritePatterns[sprite * 2] = ppu_read(lowAddr);
+                        spritePatterns[sprite * 2 + 1] = ppu_read(lowAddr + 8);
+//                        printf("sprite pattern is %X sprite pattern is %X  patternTable is %X\n",
+//                               spritePatterns[sprite * 2], spritePatterns[2 * sprite + 1], lowAddr);
+//                        printf("secondary OAM index %d \n", secondaryOamIndex);
+                    }
+                }
+
+        }
     }
 
     void shiftHorizontal() {
@@ -363,15 +466,11 @@ namespace PPU {
             return;
         }
         if ((vRamAddr & 0X1F) == 31) {
-            //printf("flagnabit");
             vRamAddr &= ~0x1F;
             vRamAddr ^= 0x400;
         } else {
-            //printf("coarseX is %d , cycle is %d, scanline is %d\n", vRamAddr & 0X1F, cycle, scanline);
             vRamAddr++;
         }
-        //int coarseY = (vRamAddr & 0x3E0) >> 5;
-        //printf("horizontal coarseY is : %d \n", coarseY);
     }
 
     void shiftVertical() {
@@ -428,6 +527,9 @@ namespace PPU {
      */
     void scan_line() {
         setInterruptToCpuIfNeeded();
+        if (isVisibleScanline()) {
+            evaluateSprites();
+        }
         if (isVisibleCycle() && isVisibleScanline()) {
             writePixel();
         }
@@ -443,9 +545,6 @@ namespace PPU {
             case 1:
                 renderingAddr = getNametableByteAddr();
                 nametable = ppu_read(renderingAddr);
-                if (scanline > 30 && scanline < 40) {
-                    printf("nametable byte is 0x%X", nametable);
-                }
                 break;
 
             case 3:
@@ -505,10 +604,7 @@ namespace PPU {
                     shiftAmount += 2;
                 }
                 u8 attrVal = ((mask << shiftAmount) & attrByte) >> shiftAmount;
-//                printf("addr %X attrByte %X ,   tileRow %d, tileCol %d, shiftAmount %d\n",attrAddr, attrByte, tileRow % 8, tile % 8, shiftAmount);
-//                printf("%d \n",attrVal);
                 u16 lowByteAddr = ppu_read(0x2000 + 32 * tileRow + tile);
-                //printPatternTable(0x2000 + 32 * tileRow + tile);
                 lowByteAddr = 0x1000 + (lowByteAddr) * 16;
                 u16 highByteAddr = lowByteAddr + 8;
                 for (int row = 0; row < 8; row++) {
@@ -530,7 +626,6 @@ namespace PPU {
         scan_line();
         cycle++;
         if (cycle == 341) {
-            count++;
             cycle = 0;
             scanline++;
         }
@@ -540,8 +635,8 @@ namespace PPU {
         }
         if (scanline > 261) {
             scanline = 0;
-            count = 0;
-            GUI::update_frame(pixels);\
+            //drawPatterns();
+            GUI::update_frame(pixels);
         }
     }
 
@@ -550,7 +645,7 @@ namespace PPU {
         //std::cout << "access register " << std::hex << addr << std::endl;
         u8 num;
         u16 index = (addr - 0x2000) % 8;
-        if (index == 9) {
+        if (index == 0) {
             std::cout << "access register " << std::to_string(index) << std::endl;
             printf("   cycle is %d scanline is %d\n", cycle, scanline);
             printf("register addr %x \n", addr);
@@ -568,8 +663,6 @@ namespace PPU {
                     mask = 3 << 10;
                     temporaryVramAddr &= ~mask;
                     temporaryVramAddr |= nametableVal;
-//                    printf("temporary vram is %04X",nametableVal);
-//                    printf("temporary vram is %04X",temporaryVramAddr);
                     return ppuCtl;
                 case 1:
                     ppuMask = val;
@@ -578,6 +671,7 @@ namespace PPU {
                     oamAddr = val;
                     return oamAddr;
                 case 4:
+                    printf("writing to OAM memory!!!!,  oamAddr %X, oamVal %d", oamAddr, val);
                     OAM[oamAddr] = val;
                     return val;
                 case 5:
@@ -594,7 +688,6 @@ namespace PPU {
                         u16 fineY = val & 0x7;
                         fineY <<= 12;
                         u16 coarseY = (val & 0xF8) >> 3;
-//                        printf("coarse y is %d", coarseY);
                         coarseY <<= 5;
                         temporaryVramAddr &= ~0x73e0;
                         temporaryVramAddr |= (fineY | coarseY);
@@ -608,16 +701,16 @@ namespace PPU {
                     return val;
                 case 6:
                     if (!addressLatch) {
-                        std::cout << "temporary vram " << std::bitset<16>(temporaryVramAddr) << std::endl;
+//                        std::cout << "temporary vram " << std::bitset<16>(temporaryVramAddr) << std::endl;
                         temporaryVramAddr = (temporaryVramAddr & 0xFF) | (u16) (0x3F & val) << 8;
-                        std::cout << "temporary vram " << std::bitset<16>(temporaryVramAddr) << std::endl;
-                        std::cout << "new val " << std::bitset<8>(val) << std::endl;
+//                        std::cout << "temporary vram " << std::bitset<16>(temporaryVramAddr) << std::endl;
+//                        std::cout << "new val " << std::bitset<8>(val) << std::endl;
                     } else {
                         temporaryVramAddr = (temporaryVramAddr & 0xFF00) | val;
-                        std::cout << "temporary vram " << std::bitset<16>(temporaryVramAddr) << std::endl;
-                        std::cout << "new val " << std::bitset<8>(val) << std::endl;
+//                        std::cout << "temporary vram " << std::bitset<16>(temporaryVramAddr) << std::endl;
+//                        std::cout << "new val " << std::bitset<8>(val) << std::endl;
                         vRamAddr = temporaryVramAddr;
-                        printf("new vramAddr is 0x%x \n", vRamAddr);
+//                        printf("new vramAddr is 0x%x \n", vRamAddr);
                     }
                     addressLatch = !addressLatch;
                     return val;

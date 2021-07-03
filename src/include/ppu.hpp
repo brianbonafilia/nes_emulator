@@ -20,6 +20,11 @@ namespace PPU {
 
     void doStep();
 
+    /**
+     * transfer 256 byte data directly to OAM
+     */
+    void transferToOamDma(u8 dataTransfer, int index);
+
     int getCycle();
 
     int getScanline();
