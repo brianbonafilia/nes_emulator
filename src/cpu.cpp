@@ -113,7 +113,7 @@ namespace CPU {
      *  Use direct memory access to transfer to PPU OAM
      */
     void transferToOamWithDma(u16 addr) {
-        for (int i = 0; i < 0xFF; i++) {
+        for (int i = 0; i < 0x100; i++) {
             T;
             if (i < 0xFE || remainingCycles % 2 == 0) {
                 T;

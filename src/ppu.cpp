@@ -281,6 +281,9 @@ namespace PPU {
     }
 
     void transferToOamDma(u8 dataTransfer, int index) {
+        if (index == 254) {
+            printf("It's really happening hmmm,  %d", dataTransfer);
+        }
         OAM[index] = dataTransfer;
     }
 
@@ -420,11 +423,14 @@ namespace PPU {
                             }
                             break;
                     }
-                    spriteIndex %= 63;
+                    spriteIndex %= 64;
                     secondaryOamIndex %= 64;
                 }
                 break;
             case 321:
+                if (scanline >= 40 && scanline < 48) {
+                    printf("hih");
+                }
                 if (secondaryOamIndex > 0) {
                     printf("SL is %d, secondaryOamIndex %d \n",
                            scanline, secondaryOamIndex);
@@ -441,8 +447,8 @@ namespace PPU {
                 if (cycle % 8 == 0) {
                     if (sprite * 4 >= secondaryOamIndex) {
                         counters[sprite] = 0xFF;
-                        spritePatterns[sprite] = 0x00;
-                        spritePatterns[sprite+1] = 0x00;
+                        spritePatterns[sprite * 2] = 0x00;
+                        spritePatterns[sprite * 2 +1] = 0x00;
                     } else {
 //                        printf("SL is %d,  cycles is %d, tile is %X, sprite index is %d\n"
 //                               , scanline, cycle, secondaryOamBuffer[sprite * 4 + 1], sprite);
