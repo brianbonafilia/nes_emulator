@@ -275,15 +275,15 @@ namespace PPU {
             case 0x3F00 ... 0x3FFF:
                 return palleteRam[(addr - 0x3F00) % 0x20] = value;
             default:
-                printf("fucl \n");
+                printf("fucl addr %X\n", addr);
         }
         return 0;
     }
 
     void transferToOamDma(u8 dataTransfer, int index) {
-        if (index == 254) {
-            printf("It's really happening hmmm,  %d", dataTransfer);
-        }
+//        if (OAM[index] != dataTransfer) {
+//            printf("its mofucking happening");
+//        }
         OAM[index] = dataTransfer;
     }
 
@@ -427,21 +427,18 @@ namespace PPU {
                     secondaryOamIndex %= 64;
                 }
                 break;
-            case 321:
-                if (scanline >= 40 && scanline < 48) {
-                    printf("hih");
-                }
-                if (secondaryOamIndex > 0) {
-                    printf("SL is %d, secondaryOamIndex %d \n",
-                           scanline, secondaryOamIndex);
-                    for (int i = 0; i < secondaryOamIndex; i++) {
-                        printf("%02X ", secondaryOamBuffer[i]);
-                        if (i % 8 == 7) {
-                            printf("\n");
-                        }
-                    }
-                    printf("\n");
-                }
+//            case 321:
+//                if (secondaryOamIndex > 0) {
+//                    printf("SL is %d, secondaryOamIndex %d \n",
+//                           scanline, secondaryOamIndex);
+//                    for (int i = 0; i < secondaryOamIndex; i++) {
+//                        printf("%02X ", secondaryOamBuffer[i]);
+//                        if (i % 8 == 7) {
+//                            printf("\n");
+//                        }
+//                    }
+//                    printf("\n");
+//                }
             case 257 ... 320:
                 u8 sprite = (cycle - 257) / 8;
                 if (cycle % 8 == 0) {
@@ -651,14 +648,14 @@ namespace PPU {
         //std::cout << "access register " << std::hex << addr << std::endl;
         u8 num;
         u16 index = (addr - 0x2000) % 8;
-        if (index == 0) {
-            std::cout << "access register " << std::to_string(index) << std::endl;
-            printf("   cycle is %d scanline is %d\n", cycle, scanline);
-            printf("register addr %x \n", addr);
-            if (wr) {
-                printf("writing new value 0x%x \n", val);
-            }
-        }
+//        if (index != 2) {
+//            std::cout << "access register " << std::to_string(index) << std::endl;
+//            printf("   cycle is %d scanline is %d\n", cycle, scanline);
+//            printf("register addr %x \n", addr);
+//            if (wr) {
+//                printf("writing new value 0x%x \n", val);
+//            }
+//        }
         u16 nametableVal;
         u16 mask;
         if (wr) {
@@ -669,15 +666,14 @@ namespace PPU {
                     mask = 3 << 10;
                     temporaryVramAddr &= ~mask;
                     temporaryVramAddr |= nametableVal;
-                    return ppuCtl;
+                    return val;
                 case 1:
                     ppuMask = val;
-                    return ppuMask;
+                    return val;
                 case 3:
                     oamAddr = val;
-                    return oamAddr;
+                    return val;
                 case 4:
-                    printf("writing to OAM memory!!!!,  oamAddr %X, oamVal %d", oamAddr, val);
                     OAM[oamAddr] = val;
                     return val;
                 case 5:
@@ -709,6 +705,7 @@ namespace PPU {
                     if (!addressLatch) {
 //                        std::cout << "temporary vram " << std::bitset<16>(temporaryVramAddr) << std::endl;
                         temporaryVramAddr = (temporaryVramAddr & 0xFF) | (u16) (0x3F & val) << 8;
+
 //                        std::cout << "temporary vram " << std::bitset<16>(temporaryVramAddr) << std::endl;
 //                        std::cout << "new val " << std::bitset<8>(val) << std::endl;
                     } else {
@@ -722,9 +719,9 @@ namespace PPU {
                     return val;
                 case 7:
 //                    printf("writing to ppuAddr 0x%x value 0x%02X \n", vRamAddr&0x3FFF, val);
-                    num =  ppu_write(vRamAddr & 0x3FFF, val);
+                    ppu_write(vRamAddr & 0x3FFF, val);
                     vRamAddr += ppuCtl & 0x4 ? 32 : 1;
-                    return num;
+                    return val;
                 default:
                     return 0;
             }
@@ -741,6 +738,7 @@ namespace PPU {
             case 7:
                 num = ppu_read(vRamAddr&0x3FFF);
                 vRamAddr += ppuCtl & 0x4 ? 32 : 1;
+                printf("reading from chr-rom %X\n", num);
                 return num;
             default:
                 return 0;

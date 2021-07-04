@@ -1,11 +1,11 @@
 #include <iostream>
 #include <cstdlib>
 #include <cstring>
-#include "unistd.h"
 
 #include "include/cpu.hpp"
 #include "include/cartridge.hpp"
 #include "include/ppu.hpp"
+#include "include/controller.hpp"
 
 namespace CPU {
 
@@ -13,6 +13,7 @@ namespace CPU {
 
     bool debug = false;
     bool test = false;
+    bool test2 = false;
 
     int opCode;
 
@@ -100,7 +101,15 @@ namespace CPU {
             case 0x4014:
                 transferToOamWithDma((u16)v << 8);
                 return 0;
-            case 0x4016 ... 0x4017:
+            case 0x4016:
+//                printf("controller %X write ? %d and value %d \n", addr, wr, v);
+                if (wr) {
+                    Controller::setControllerStatus(v);
+                    return 0x40;
+                }
+                return 0x40 | Controller::getController1();
+            case 0x4017:
+//                printf("controller %X write ? %d and value %d \n", addr, wr, v);
                 return 0;
             case 0x4020 ... 0xFFFF: /*TODO Cartridge space: PRG ROM, PRG RAM, and
 			       mapper registers */
@@ -113,6 +122,7 @@ namespace CPU {
      *  Use direct memory access to transfer to PPU OAM
      */
     void transferToOamWithDma(u16 addr) {
+//        printf("it's happening now \n");
         for (int i = 0; i < 0x100; i++) {
             T;
             if (i < 0xFE || remainingCycles % 2 == 0) {
@@ -216,6 +226,9 @@ namespace CPU {
 //Load accumulator OPs
     template<Mode m>
     void LDA() {
+        if (test) {
+            printf(" LDA ");
+        }
         u16 a = m();
      //   printf("    a is %x    ", a);
         u8 t = rd(a);
@@ -238,6 +251,9 @@ namespace CPU {
 //Load Y register
     template<Mode m>
     void LDY() {
+        if (test) {
+            printf(" LDY ");
+        }
         u16 a = m();
         u8 t = rd(a);
         upd_nz(t);
@@ -246,7 +262,12 @@ namespace CPU {
 
 /*STx ops */
     template<u8 &r, Mode m>
-    void st() { wr(m(), r); }
+    void st() {
+        u16 addr = m();
+        if (test) {
+            printf(" STx %X ", addr);
+        }
+        wr(addr, r); }
 
     template<>
     void st<A, abx>() {
@@ -289,6 +310,9 @@ namespace CPU {
     template<Mode m>
     void ADC() {
         G;
+        if (test) {
+            printf(" ADC ");
+        }
         u16 r = A + p + P[C];
         upd_cv(A, p, r);
         upd_nz(A = r);
@@ -298,6 +322,9 @@ namespace CPU {
     template<Mode m>
     void SBC() {
         G;
+        if (test) {
+            printf(" SBC ");
+        }
         p = ~p; //take complement of value taken from memory
         u16 r = A + p + P[C];
         upd_cv(A, p, r);
@@ -309,6 +336,9 @@ namespace CPU {
     void DEC() {
         G;
         T;
+        if (test) {
+            printf(" DEC ");
+        }
         wr(a, --p);
         upd_nz(p);
     }
@@ -316,11 +346,17 @@ namespace CPU {
 /* decrement from registers */
     void DEX() {
         T;
+        if (test) {
+            printf(" DEX ");
+        }
         upd_nz(--X);
     }
 
     void DEY() {
         T;
+        if (test) {
+            printf(" DEY ");
+        }
         upd_nz(--Y);
     }
 
@@ -329,6 +365,9 @@ namespace CPU {
     void INC() {
         G;
         T;
+        if (test) {
+            printf(" INC ");
+        }
         wr(a, ++p);
         upd_nz(p);
     }
@@ -336,11 +375,17 @@ namespace CPU {
 /*increment registers*/
     void INX() {
         T;
+        if (test) {
+            printf(" INX ");
+        }
         upd_nz(++X);
     }
 
     void INY() {
         T;
+        if (test) {
+            printf(" INY ");
+        }
         upd_nz(++Y);
     }
 
@@ -349,12 +394,18 @@ namespace CPU {
     template<Mode m>
     void AND() {
         G;
+        if (test) {
+            printf(" AND ");
+        }
         u8 v = A & p;
         upd_nz(A = v);
     }
 
 //Shift left 1 bit, accumulater
     void ASL() {
+        if (test) {
+            printf(" ASL ");
+        }
         u16 r = A << 1;
         P[C] = r > 0xFF;
         upd_nz(A = r);
@@ -365,6 +416,9 @@ namespace CPU {
     template<Mode m>
     void ASL() {
         G;
+        if (test) {
+            printf(" ASL ");
+        }
         P[C] = p & 0x80; //shift leftmost bit into carry flag;
         T;
         upd_nz(wr(a, p << 1));
@@ -374,6 +428,9 @@ namespace CPU {
     template<Mode m>
     void BIT() {
         G;
+        if (test) {
+            printf(" BIT ");
+        }
         P[Z] = !(A & p);
         P[N] = p & 0x80; //bit 7 to N
         P[V] = p & 0x40; //bit 6 to V
@@ -383,11 +440,17 @@ namespace CPU {
     template<Mode m>
     void EOR() {
         G;
+        if (test) {
+            printf(" EOR ");
+        }
         upd_nz(A = (p ^ A));
     }
 
 //Shift one bit right move, move 0th bit to Carry
     void LSR() {
+        if (test) {
+            printf(" LSR ");
+        }
         P[C] = A & 0x01;
         upd_nz(A >>= 1);
         T;
@@ -397,6 +460,9 @@ namespace CPU {
     template<Mode m>
     void SLO() {
         G;
+        if (test) {
+            printf(" SLO ");
+        }
         P[C] = p & 0xF0;
         upd_nz(wr(a, p << 1));
     }
@@ -404,6 +470,9 @@ namespace CPU {
     template<Mode m>
     void LSR() {
         G;
+        if (test) {
+            printf(" LSR ");
+        }
         P[C] = p & 0x01;
         upd_nz(wr(a, p >> 1));
         T;
@@ -413,6 +482,9 @@ namespace CPU {
     template<Mode m>
     void ORA() {
         G;
+        if (test) {
+            printf(" ORA ");
+        }
         upd_nz(A |= p);
     }
 
@@ -421,14 +493,22 @@ namespace CPU {
     void ROL() {
         G;
         T;
-        P[C] = p & 0x80;
+        if (test) {
+            printf(" ROL ");
+        }
+        u8 carry = A & 0x80;
         p = (p << 1) + P[C];
+        P[C] = carry;
         upd_nz(wr(a, p));
     }
 
     void ROL() {
-        P[C] = A & 0x80;
+        if (test) {
+            printf(" ROL ");
+        }
+        u8 carry = A & 0x80;
         A = (A << 1) + P[C];
+        P[C] = carry;
         upd_nz(A);
         T;
     }
@@ -437,6 +517,9 @@ namespace CPU {
     template<Mode m>
     void ROR() {
         G;
+        if (test) {
+            printf(" ROR ");
+        }
         u8 carry = P[C];
         P[C] = p & 0x01;
         p = (p >> 1) + (carry << 7);
@@ -445,6 +528,9 @@ namespace CPU {
     }
 
     void ROR() {
+        if (test) {
+            printf(" ROR ");
+        }
         u8 carry = A & 0x1;
         A = (A >> 1) + (P[C] << 7);
         P[C] = carry;
@@ -454,6 +540,9 @@ namespace CPU {
 
 //Branch on carry clear, P[C] = 0, PC will move to next location
     void BCC() {
+        if (test) {
+            printf(" BCC ");
+        }
         s8 p = rd(imm());
         if (!P[C]) {
             T;
@@ -465,6 +554,9 @@ namespace CPU {
 
 //Branch on carry set, if P[C], program counter will move to next location
     void BCS() {
+        if (test) {
+            printf(" BCS ");
+        }
         s8 p = rd(imm());
         if (P[C]) {
             T;
@@ -476,6 +568,9 @@ namespace CPU {
 
 //branch on result zero
     void BEQ() {
+        if (test) {
+            printf(" BEQ ");
+        }
         s8 p = rd(imm());
         if (P[Z]) {
             T;
@@ -487,6 +582,9 @@ namespace CPU {
 
 //branch on result minus
     void BMI() {
+        if (test) {
+            printf(" BMI ");
+        }
         s8 p = rd(imm());
         if (P[N]) {
             T;
@@ -498,6 +596,9 @@ namespace CPU {
 
 //branch on not zero
     void BNE() {
+        if (test) {
+            printf(" BNE ");
+        }
         s8 p = rd(imm());
         if (!P[Z]) {
             T;
@@ -509,6 +610,9 @@ namespace CPU {
 
 //branch on result plus
     void BPL() {
+        if (test) {
+            printf(" BPL ");
+        }
         s8 p = rd(imm());
         if (!P[N]) {
             T;
@@ -520,6 +624,9 @@ namespace CPU {
 
 //Branch on overflow flag clear
     void BVC() {
+        if (test) {
+            printf(" BVC ");
+        }
         s8 p = rd(imm());
         if (!P[V]) {
             T;
@@ -531,6 +638,9 @@ namespace CPU {
 
 //Branch on carry flag set
     void BVS() {
+        if (test) {
+            printf(" BVS ");
+        }
         s8 p = rd(imm());
         if (P[V]) {
             T;
@@ -548,6 +658,9 @@ namespace CPU {
 
 //Pull A from stack
     void PLA() {
+        if (test) {
+            printf(" PLA ");
+        }
         T;
         T;
         A = pop();
@@ -571,6 +684,9 @@ namespace CPU {
 
 //Jump to address made from next 2 bytes
     void JMP() {
+        if (test) {
+            printf(" JMP ");
+        }
         PC = abs();
     }
 /*Indirect JMP */
@@ -585,6 +701,9 @@ namespace CPU {
 
 //Jump to subroutine
     void JSR() {
+        if (test) {
+            printf(" JSR ");
+        }
         u16 t = PC + 1;
         T;
         push(t >> 8);
@@ -603,6 +722,9 @@ namespace CPU {
 
 //Return from subroutine
     void RTS() {
+        if (test) {
+            printf(" RTS ");
+        }
         T;
         T;
         PC = pop() | pop() << 8;
@@ -627,6 +749,9 @@ namespace CPU {
 //Clear flag
     template<Flag f>
     void cl() {
+        if (test) {
+            printf(" CL ");
+        }
         P[f] = 0;
         T;
     }
@@ -687,23 +812,29 @@ namespace CPU {
 
     void NOP() { T; }
 
+    template <Mode m>
+    void NOP() {
+        u8 addr = m();
+        rd(addr);
+        T;
+    }
+
     void exec() {
+        opCode = rd(PC++);
         if (debug) {
-            sleep(1);
             std::cout << " Program Counter " << std::hex << PC % 0x8000;
-            std::cout << " performing OP code " << std::hex << (int) rd(PC);
+            std::cout << " performing OP code " << std::hex << (int) opCode;
             std::cout << " A = " << (int) A << " X = " << (int) X << " Y = " << (int) Y;
             std::cout << " P =  " << std::hex << (int) P.get();
             std::cout << " S = " << std::hex << (int) S << std::endl;
-        } if (test) {
-            printf("%04X ", PC);
+        } if (test2) {
+            printf("%04X ", PC - 1);
 //            std::cout << " " << std::hex << (int) rd(PC);
 //            std::cout << " A:" << (int) A << " X:" << (int) X << " Y:" << (int) Y;
-            printf("%02X A:%02X X:%02X Y:%02X P:%02X SP:%02X \n",rd(PC), A, X, Y, P.get(), S);
+            printf("%02X A:%02X X:%02X Y:%02X P:%02X SP:%02X \n",opCode, A, X, Y, P.get(), S);
 //            std::cout << " CYC:" << std::to_string(PPU::getCycle());
 //            std::cout << " SL:" << std::to_string(PPU::getScanline()) << std::endl;
         }
-        opCode = rd(PC++);
         switch (opCode) {
 
             case 0x03:
@@ -1086,9 +1217,40 @@ namespace CPU {
             case 0xCC:
                 return cmp<Y, abs>();
 
-                //NOP
+            //NOP
             case 0xEA:
                 return NOP();
+            case 0x44:
+                return NOP<zp>();
+            case 0x64:
+                return NOP<zp>();
+            case 0x0C:
+                return NOP<abs>();
+            case 0x34:
+                return NOP<zpx>();
+            case 0x54:
+                return NOP<zpx>();
+            case 0x74:
+                return NOP<zpx>();
+            case 0xD4:
+                return NOP<zpx>();
+            case 0xF4:
+                return NOP<zpx>();
+            case 0x3A:
+                return NOP();
+            case 0x5A:
+                return NOP();
+            case 0x7A:
+                return NOP();
+            case 0xDA:
+                return NOP();
+            case 0xFA:
+                return NOP();
+            case 0x80:
+                return NOP<imm>();
+            case 0x89:
+                return NOP<imm>();
+
 
                 //Unofficial
             case 0x04:
@@ -1142,7 +1304,7 @@ namespace CPU {
         T;
         T;
         PC = rd16(0xFFFC);
-        //PC = 0xC000;
+//        PC = 0xC000;
     }
 
     /**

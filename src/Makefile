@@ -3,8 +3,8 @@ LDFLAGS=-g -Wall -Werror -std=c++17 -L/opt/homebrew/lib -lSDL2
 
 all: main clean
 
-main: main.o cpu.o cartridge.o mapper.o ppu.o gui.o
-	c++ $(LDFLAGS) -o main main.o cpu.o cartridge.o mapper.o ppu.o gui.o
+main: main.o cpu.o cartridge.o mapper.o ppu.o gui.o controller.o
+	c++ $(LDFLAGS) -o main main.o cpu.o cartridge.o mapper.o ppu.o gui.o controller.o
 
 main.o: main.cpp
 	c++ $(CPPFLAGS) -c main.cpp
@@ -23,6 +23,9 @@ ppu.o: ppu.cpp cpu.o
 
 mapper.o:
 	c++ $(CPPFLAGS) -c mapper.cpp
+
+controller.o: controller.cpp
+	c++ $(CPPFLAGS) -c controller.cpp
 
 
 clean:
