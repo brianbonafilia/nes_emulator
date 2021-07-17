@@ -26,14 +26,6 @@ namespace Controller {
        u8 val = controller1_status.state & 1;
        controller1_status.state >>= 1;
        counter--;
-//       std::cout << "this is state of controller " << std::bitset<8>(controller1_status.state) << std::endl;
-//       if (counter == 0) {
-//           printf("counter is 0, and val is %d\n", val);
-//       }
-       if (val == 1) {
-           printf("returning val %d\n", val);
-           printf("counter is %d\n", counter);
-       }
        return val;
    }
 

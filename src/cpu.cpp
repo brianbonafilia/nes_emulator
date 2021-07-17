@@ -463,7 +463,7 @@ namespace CPU {
         if (test) {
             printf(" SLO ");
         }
-        P[C] = p & 0xF0;
+        P[C] = p & 0x80;
         upd_nz(wr(a, p << 1));
     }
 

@@ -6,6 +6,7 @@
 #include "include/cpu.hpp"
 #include "include/mapper.hpp"
 #include "include/mappers/mapper0.hpp"
+#include "include/mappers/mapper1.hpp"
 #include "include/ppu.hpp"
 
 namespace Cartridge {
@@ -19,8 +20,9 @@ namespace Cartridge {
         //TODO mapper access
         if (!wr) {
             return mapper->read(addr);
+        } else {
+            return mapper->write(addr, v);
         }
-        return 0;
     }
 
     template<bool wr>
@@ -28,6 +30,8 @@ namespace Cartridge {
         //TODO mapper access
         if (!wr) {
             return mapper->chr_read(addr);
+        } else {
+            return mapper->chr_write(addr, v);
         }
         return 0;
     }
@@ -60,13 +64,22 @@ namespace Cartridge {
         u8 nametableMirroring = rom[6] & 0x1;
         PPU::Mirroring mirroringType = nametableMirroring ? PPU::vertical : PPU::horizontal;
 
+        if (mirroringType == PPU::vertical) {
+            printf("vertical");
+        } else {
+            printf("horizontal");
+        }
 
 
-        //std::cout << (int) mapperID << std::endl;
+        std::cout << (int) mapperID << std::endl;
 
         switch (mapperID) {
             case 0:
                 mapper = new Mapper0(rom);
+                break;
+            case 1:
+                mapper = new Mapper1(rom);
+                break;
         }
         //
 

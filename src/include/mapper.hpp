@@ -28,11 +28,11 @@ public:
 
     ~Mapper();
 
-    u8 read(u16 addr);
+    virtual u8 read(u16 addr);
 
     virtual u8 write(u16 addr, u8 val) { return val; }
 
-    u8 chr_read(u16 addr);
+    virtual u8 chr_read(u16 addr);
 
     virtual u8 chr_write(u16 addr, u8 v) { return v; }
 
