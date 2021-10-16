@@ -38,15 +38,11 @@ Mapper::~Mapper() {
 }
 
 u8 Mapper::read(u16 addr) {
-//    printf("ADDR is %X \n", addr);
 
     if (addr >= 0x8000) {
-//        printf("%X ", (addr - 0x8000) % prgSize);
-//        printf("val %X \n", prg[(addr - 0x8000) % prgSize]);
         return prg[(addr - 0x8000) % prgSize];
     } else {
-        printf("GMA halp");
-        return 0;
+        return prgRam[addr - 0x6000];
     }
 }
 

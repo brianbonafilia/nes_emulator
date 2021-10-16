@@ -227,6 +227,14 @@ namespace PPU {
             case vertical:
                 addr =  addr % 0x800;
                 break;
+            case singleLow:
+//                printf("addr is %X", addr);
+                addr = addr % 0x400;
+                break;
+            case singleHigh:
+//                printf("addr is %X", addr);
+                addr = addr % 0x400 + 0x400;
+                break;
         }
         return addr;
     }
@@ -269,7 +277,7 @@ namespace PPU {
         switch(addr) {
             case 0x0000 ... 0x1FFF:
                 // return from pattern table 0 and 1
-                return Cartridge::chr_access<true>(addr);
+                return Cartridge::chr_access<true>(addr, value);
             case 0x2000 ... 0x2FFF:
                 return vRam[get_nametable_mirroring(addr)] = value;
             case 0x3000 ... 0x3EFF:
@@ -281,7 +289,7 @@ namespace PPU {
                 }
                 return palleteRam[palleteIndex] = value;
             default:
-                printf("fucl addr %X\n", addr);
+                exit(1);
         }
         return 0;
     }
@@ -316,6 +324,10 @@ namespace PPU {
         return 0x2000 | (vRamAddr & 0x0FFF);
     }
 
+    u8 getSpriteSize() {
+        return ppuCtl & 0b00100000 ? 16 : 8;
+    }
+
     /**
      * Get attribute byte addr,  this is found by taking the tile we are viewing
      * and using nametable attribute, getting the byte associated with the
@@ -331,8 +343,15 @@ namespace PPU {
     }
 
     u16 getSpriteTableLowAddr(u8 tileIndex, u8 yPos) {
-        u16 tilePos = (u16) tileIndex << 4;
-        u16 spriteTableSelect = (ppuCtl & 0x8) ? 0x1000 : 0;
+        u16 tilePos;
+        u16 spriteTableSelect;
+        if (getSpriteSize() == 8) {
+            tilePos = (u16) tileIndex << 4;
+            spriteTableSelect = (ppuCtl & 0x8) ? 0x1000 : 0;
+        } else {
+            tilePos = (u16) (tileIndex >> 1) << 5;
+            spriteTableSelect = tileIndex & 1 ? 0x1000 : 0;
+        }
         u16 fineY = (scanline - yPos);
         return spriteTableSelect | tilePos | fineY;
     }
@@ -417,7 +436,7 @@ namespace PPU {
                     switch (coordinateIndex) {
                         case 0:
                             y = OAM[(spriteIndex * 4) % 0x100];
-                            if (scanline >= y && scanline < y + 8) {
+                            if (scanline >= y && scanline < y + getSpriteSize()) {
                                 if (secondaryOamIndex < 32) {
                                     spriteIndices[secondaryOamIndex / 4] = spriteIndex;
                                 }
@@ -692,6 +711,7 @@ namespace PPU {
                     addressLatch = !addressLatch;
                     return val;
                 case 7:
+//                    printf("writing to ppuAddr %X", vRamAddr & 0x3FFF);
                     ppuData = val;
                     ppu_write(vRamAddr & 0x3FFF, val);
                     vRamAddr += ppuCtl & 0x4 ? 32 : 1;
@@ -716,8 +736,8 @@ namespace PPU {
                     return ppuData;
                 }
                 vRamAddr += ppuCtl & 0x4 ? 32 : 1;
-                printf("reading from addr 0x%X chr-rom %X rendering is %d scanline is %d\n",
-                       vRamAddr, num, rendering(), scanline);
+//                printf("reading from addr 0x%X chr-rom %X rendering is %d scanline is %d\n",
+//                       vRamAddr, num, rendering(), scanline);
                 return num;
             default:
                 return 0;

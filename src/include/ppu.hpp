@@ -5,7 +5,7 @@
 namespace PPU {
 
     enum Mirroring {
-        vertical, horizontal
+        vertical, horizontal, singleLow, singleHigh
     };
 
     void set_mirroring(Mirroring newMirroring);

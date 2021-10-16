@@ -82,70 +82,54 @@ namespace GUI {
                 } else if (event.type == SDL_KEYDOWN) {
                     switch (event.key.keysym.sym) {
                         case SDLK_UP:
-                            printf("UP \n");
                             status.controllerState.up = 1;
                             break;
                         case SDLK_DOWN:
-                            printf("DOWN \n");
                             status.controllerState.down = 1;
                             break;
                         case SDLK_LEFT:
-                            printf("LEFT \n");
                             status.controllerState.left = 1;
                             break;
                         case SDLK_RIGHT:
-                            printf("oh lawdRIGHT \n");
                             status.controllerState.right = 1;
                             break;
                         case SDLK_SPACE:
-                            printf("SPACE\n");
                             status.controllerState.A = 1;
                             break;
                         case SDLK_x:
-                            printf("X\n");
                             status.controllerState.B = 1;
                             break;
                         case SDLK_RETURN:
-                            printf("ENTER\n");
                             status.controllerState.start = 1;
                             break;
                         case SDLK_c:
-                            printf("SELECT\n");
                             status.controllerState.select = 1;
                             break;
                     }
                 } else if (event.type == SDL_KEYUP) {
                     switch (event.key.keysym.sym) {
                         case SDLK_UP:
-                            printf("UP \n");
                             status.controllerState.up = 0;
                             break;
                         case SDLK_DOWN:
-                            printf("DOWN \n");
                             status.controllerState.down = 0;
                             break;
                         case SDLK_LEFT:
-                            printf("LEFT \n");
                             status.controllerState.left = 0;
                             break;
                         case SDLK_RIGHT:
-                            printf("oh lawdRIGHT \n");
                             status.controllerState.right = 0;
                             break;
                         case SDLK_SPACE:
-                            printf("SPACE\n");
                             status.controllerState.A = 0;
                             break;
                         case SDLK_x:
-                            printf("X\n");
                             status.controllerState.B = 0;
                             break;
                         case SDLK_RETURN:
-                            printf("ENTER\n");
                             status.controllerState.start = 0;
                             break;
                         case SDLK_c:
-                            printf("SELECT\n");
                             status.controllerState.select = 0;
                             break;
                     }

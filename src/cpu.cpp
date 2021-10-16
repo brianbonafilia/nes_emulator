@@ -102,14 +102,12 @@ namespace CPU {
                 transferToOamWithDma((u16)v << 8);
                 return 0;
             case 0x4016:
-//                printf("controller %X write ? %d and value %d \n", addr, wr, v);
                 if (wr) {
                     Controller::setControllerStatus(v);
                     return 0x40;
                 }
                 return 0x40 | Controller::getController1();
             case 0x4017:
-//                printf("controller %X write ? %d and value %d \n", addr, wr, v);
                 return 0;
             case 0x4020 ... 0xFFFF: /*TODO Cartridge space: PRG ROM, PRG RAM, and
 			       mapper registers */
